@@ -152,4 +152,15 @@ export const api = {
     read: (id: string) => request<NotificationDTO>(`/notifications/${id}/read`, { method: 'POST' }),
     readAll: () => request<{ updated: number }>('/notifications/read-all', { method: 'POST' }),
   },
+  uploads: {
+    image: (kind: 'cover' | 'avatar', file: File) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      return request<{ url: string; objectKey: string }>(`/uploads/${kind}`, {
+        method: 'POST',
+        form: true,
+        body: fd,
+      });
+    },
+  },
 };

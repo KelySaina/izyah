@@ -108,6 +108,25 @@ export const openapiSpec = {
     '/notifications': {
       get: { tags: ['Notifications'], summary: 'List my notifications', responses: { '200': { description: 'OK' } } },
     },
+    '/uploads/{kind}': {
+      post: {
+        tags: ['Uploads'],
+        summary: 'Upload an image (kind: cover | avatar), max 5MB — returns its public URL',
+        requestBody: {
+          content: { 'multipart/form-data': { schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } } },
+        },
+        responses: {
+          '201': {
+            description: 'Stored',
+            content: {
+              'application/json': {
+                schema: { type: 'object', properties: { url: { type: 'string' }, objectKey: { type: 'string' } } },
+              },
+            },
+          },
+        },
+      },
+    },
   },
 } as const;
 

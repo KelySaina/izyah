@@ -16,6 +16,7 @@ import { eventsRouter } from './modules/events/event.routes';
 import { participantsRouter } from './modules/participants/participant.routes';
 import { messagesRouter } from './modules/messages/message.routes';
 import { mediaRouter } from './modules/media/media.routes';
+import { uploadsRouter } from './modules/uploads/upload.routes';
 import { tasksRouter } from './modules/tasks/task.routes';
 import { pollsRouter } from './modules/polls/poll.routes';
 import { notificationsRouter } from './modules/notifications/notification.routes';
@@ -54,6 +55,7 @@ export function createApp(): Express {
   app.use('/api', participantsRouter);
   app.use('/api', messagesRouter);
   app.use('/api', mediaRouter);
+  app.use('/api', uploadsRouter);
   app.use('/api', tasksRouter);
   app.use('/api', pollsRouter);
   app.use('/api', notificationsRouter);

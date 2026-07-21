@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive } from 'vue';
+import ImagePicker from '@/components/ImagePicker.vue';
 import { useUiStore } from '@/stores/ui';
 import type { CreateEventInput } from '@/types';
 
@@ -51,6 +52,8 @@ function onSubmit(): void {
 
 <template>
   <form class="space-y-4" @submit.prevent="onSubmit">
+    <ImagePicker v-model="form.coverImage" kind="cover" label="Cover photo" />
+
     <div>
       <label class="label" for="ev-title">Title *</label>
       <input id="ev-title" v-model="form.title" class="input" placeholder="Rooftop dinner party" />
@@ -86,16 +89,6 @@ function onSubmit(): void {
     <div>
       <label class="label" for="ev-loc">Location</label>
       <input id="ev-loc" v-model="form.location" class="input" placeholder="Where?" />
-    </div>
-
-    <div>
-      <label class="label" for="ev-cover">Cover image URL</label>
-      <input
-        id="ev-cover"
-        v-model="form.coverImage"
-        class="input"
-        placeholder="https://…  (optional)"
-      />
     </div>
 
     <button type="submit" class="btn-primary w-full" :disabled="loading">

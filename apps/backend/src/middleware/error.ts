@@ -26,6 +26,13 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     });
   }
 
+  // Multer upload errors (e.g. file too large) -> 400 instead of 500.
+  if (err instanceof Error && err.name === 'MulterError') {
+    const code = (err as { code?: string }).code;
+    const message = code === 'LIMIT_FILE_SIZE' ? 'File too large (max 5 MB)' : 'Upload failed';
+    return res.status(400).json({ error: { message } });
+  }
+
   // Prisma constraint / lookup errors mapped to sensible HTTP codes.
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === 'P2002') {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { Check, Download, Moon, Sun } from 'lucide-vue-next';
+import { Check, Download, Moon, Sun, ImagePlus, Camera } from 'lucide-vue-next';
+import { useImageUpload } from '@/composables/useImageUpload';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
 import { ApiError } from '@/services/api';
@@ -8,6 +9,18 @@ import Avatar from '@/components/Avatar.vue';
 
 const identity = useIdentityStore();
 const ui = useUiStore();
+
+const { uploading: avatarUploading, pickAndUpload: pickAvatar } = useImageUpload('avatar');
+async function uploadAvatar(camera: boolean): Promise<void> {
+  const url = await pickAvatar(camera);
+  if (!url) return;
+  try {
+    await identity.updateProfile({ avatar: url });
+    ui.toast('Avatar updated', 'success');
+  } catch (err) {
+    ui.toast(err instanceof ApiError ? err.message : 'Something went wrong', 'error');
+  }
+}
 
 const PRESET_COLORS = [
   '#7C3AED',
@@ -66,6 +79,15 @@ async function pickColor(color: string): Promise<void> {
     <section class="flex flex-col items-center gap-3 text-center">
       <Avatar :name="identity.displayName" :avatar="identity.avatar" :size="96" />
       <p class="text-lg font-semibold">{{ identity.displayName }}</p>
+      <div class="flex gap-2">
+        <button type="button" class="btn-ghost text-xs" :disabled="avatarUploading" @click="uploadAvatar(false)">
+          <ImagePlus :size="15" /> Upload photo
+        </button>
+        <button type="button" class="btn-ghost text-xs" :disabled="avatarUploading" @click="uploadAvatar(true)">
+          <Camera :size="15" /> Take photo
+        </button>
+      </div>
+      <p v-if="avatarUploading" class="text-xs text-fg-3">Uploading…</p>
     </section>
 
     <!-- Display name -->
