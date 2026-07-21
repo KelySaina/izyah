@@ -1,6 +1,16 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch, type Component } from 'vue';
 import { RouterLink } from 'vue-router';
+import {
+  Clock,
+  MapPin,
+  Pencil,
+  Compass,
+  MessageCircle,
+  ListChecks,
+  BarChart3,
+  Image as ImageIcon,
+} from 'lucide-vue-next';
 import Avatar from '@/components/Avatar.vue';
 import DateBadge from '@/components/DateBadge.vue';
 import EmptyState from '@/components/EmptyState.vue';
@@ -29,11 +39,11 @@ const notFound = ref(false);
 
 type Tab = 'chat' | 'tasks' | 'polls' | 'media';
 const tab = ref<Tab>('chat');
-const tabs: { key: Tab; label: string }[] = [
-  { key: 'chat', label: '💬 Chat' },
-  { key: 'tasks', label: '✅ Tasks' },
-  { key: 'polls', label: '📊 Polls' },
-  { key: 'media', label: '🖼️ Media' },
+const tabs: { key: Tab; label: string; icon: Component }[] = [
+  { key: 'chat', label: 'Chat', icon: MessageCircle },
+  { key: 'tasks', label: 'Tasks', icon: ListChecks },
+  { key: 'polls', label: 'Polls', icon: BarChart3 },
+  { key: 'media', label: 'Media', icon: ImageIcon },
 ];
 
 const event = computed(() => events.current);
@@ -72,11 +82,13 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
 </script>
 
 <template>
-  <div v-if="loading" class="grid place-items-center py-16 text-sm text-slate-500">Loading…</div>
+  <div v-if="loading" class="grid place-items-center py-16">
+    <div class="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-brand-500" />
+  </div>
 
   <EmptyState
     v-else-if="notFound || !event"
-    icon="🧭"
+    :icon="Compass"
     title="Event not found"
     subtitle="This link may be wrong or the event was removed."
   >
@@ -97,28 +109,33 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
       <div class="flex items-start gap-3">
         <DateBadge :date="event.date" />
         <div class="min-w-0 flex-1">
-          <h1 class="text-2xl font-bold leading-tight tracking-tight">{{ event.title }}</h1>
+          <h1 class="font-display text-2xl font-bold leading-tight tracking-tight">
+            {{ event.title }}
+          </h1>
           <p class="mt-1 text-sm text-slate-400">{{ formatDate(event.date) }}</p>
-          <p v-if="event.startTime" class="text-sm text-slate-400">
-            🕒 {{ formatTimeRange(event.startTime, event.endTime) }}
+          <p v-if="event.startTime" class="mt-0.5 flex items-center gap-1.5 text-sm text-slate-400">
+            <Clock :size="14" class="text-slate-500" />
+            {{ formatTimeRange(event.startTime, event.endTime) }}
           </p>
-          <p v-if="event.location" class="text-sm text-slate-400">📍 {{ event.location }}</p>
+          <p v-if="event.location" class="mt-0.5 flex items-center gap-1.5 text-sm text-slate-400">
+            <MapPin :size="14" class="text-slate-500" /> {{ event.location }}
+          </p>
         </div>
         <RouterLink
           v-if="isCreator"
           :to="`/event/${event.id}/edit`"
-          class="btn-ghost !px-3 !py-1.5 text-xs"
+          class="btn-ghost !gap-1.5 !px-3 !py-1.5 text-xs"
         >
-          Edit
+          <Pencil :size="14" /> Edit
         </RouterLink>
       </div>
 
       <div v-if="event.creator" class="flex items-center gap-2 text-sm text-slate-400">
         <Avatar :user="event.creator" :size="24" />
-        <span>Hosted by {{ event.creator.displayName }}</span>
+        <span>Hosted by <span class="font-medium text-slate-300">{{ event.creator.displayName }}</span></span>
       </div>
 
-      <p v-if="event.description" class="whitespace-pre-wrap text-sm text-slate-300">
+      <p v-if="event.description" class="whitespace-pre-wrap text-sm leading-relaxed text-slate-300">
         {{ event.description }}
       </p>
     </header>
@@ -128,7 +145,7 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
 
     <!-- Attendees -->
     <section class="card space-y-3 p-4">
-      <h2 class="text-sm font-semibold text-slate-200">Who's coming</h2>
+      <h2 class="text-sm font-bold text-slate-200">Who's coming</h2>
       <AttendeeList
         :attendees="events.attendees"
         :counts="events.counts"
@@ -146,11 +163,11 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
           v-for="t in tabs"
           :key="t.key"
           type="button"
-          class="whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition"
-          :class="tab === t.key ? 'bg-brand-600 text-white' : 'bg-ink-700 text-slate-300'"
+          class="flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-semibold transition"
+          :class="tab === t.key ? 'bg-brand-500 text-ink-900' : 'bg-ink-800 text-slate-300'"
           @click="tab = t.key"
         >
-          {{ t.label }}
+          <component :is="t.icon" :size="15" :stroke-width="2.25" /> {{ t.label }}
         </button>
       </div>
 

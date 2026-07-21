@@ -26,7 +26,7 @@ defineProps<{
         <Avatar :user="a.user" :size="36" />
         <span
           v-if="a.role === 'HOST'"
-          class="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-brand-600 px-1.5 py-px text-[9px] font-bold uppercase leading-tight text-white"
+          class="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-brand-500 px-1.5 py-px text-[9px] font-bold uppercase leading-tight text-ink-900"
         >
           Host
         </span>

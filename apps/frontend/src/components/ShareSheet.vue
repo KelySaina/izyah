@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { Link2, Share2, CalendarPlus, Download } from 'lucide-vue-next';
 import { useUiStore } from '@/stores/ui';
 import { downloadICS, googleCalendarUrl } from '@/lib/ics';
 import type { EventDTO } from '@/types';
@@ -30,26 +31,28 @@ async function nativeShare(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex flex-wrap gap-2">
-    <button type="button" class="btn-ghost text-xs" @click="copyLink">🔗 Copy link</button>
+  <div class="grid grid-cols-4 gap-2">
+    <button type="button" class="flex flex-col items-center gap-1.5 rounded-xl bg-ink-800 py-3 text-[11px] font-medium text-slate-300 transition active:scale-95 hover:bg-ink-700" @click="copyLink">
+      <Link2 :size="18" class="text-brand-400" /> Copy
+    </button>
     <button
       v-if="canNativeShare"
       type="button"
-      class="btn-ghost text-xs"
+      class="flex flex-col items-center gap-1.5 rounded-xl bg-ink-800 py-3 text-[11px] font-medium text-slate-300 transition active:scale-95 hover:bg-ink-700"
       @click="nativeShare"
     >
-      📤 Share
+      <Share2 :size="18" class="text-brand-400" /> Share
     </button>
     <a
-      class="btn-ghost text-xs"
+      class="flex flex-col items-center gap-1.5 rounded-xl bg-ink-800 py-3 text-[11px] font-medium text-slate-300 transition active:scale-95 hover:bg-ink-700"
       :href="googleCalendarUrl(event)"
       target="_blank"
       rel="noopener noreferrer"
     >
-      📅 Google Calendar
+      <CalendarPlus :size="18" class="text-brand-400" /> Calendar
     </a>
-    <button type="button" class="btn-ghost text-xs" @click="downloadICS(event)">
-      ⬇︎ .ics
+    <button type="button" class="flex flex-col items-center gap-1.5 rounded-xl bg-ink-800 py-3 text-[11px] font-medium text-slate-300 transition active:scale-95 hover:bg-ink-700" @click="downloadICS(event)">
+      <Download :size="18" class="text-brand-400" /> .ics
     </button>
   </div>
 </template>

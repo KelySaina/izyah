@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { ListChecks, Plus, Check, RotateCcw } from 'lucide-vue-next';
 import { api, ApiError } from '@/services/api';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
@@ -90,11 +91,11 @@ async function toggleDone(task: TaskDTO): Promise<void> {
       />
       <button
         type="submit"
-        class="btn-primary px-4 text-lg leading-none"
+        class="btn-primary shrink-0 !px-3.5"
         :disabled="adding || !newTitle.trim()"
         aria-label="Add task"
       >
-        +
+        <Plus :size="18" :stroke-width="2.5" />
       </button>
     </form>
 
@@ -102,7 +103,7 @@ async function toggleDone(task: TaskDTO): Promise<void> {
 
     <EmptyState
       v-else-if="tasks.length === 0"
-      icon="✅"
+      :icon="ListChecks"
       title="No tasks yet"
       subtitle="Add the first thing that needs doing."
     />
@@ -135,17 +136,14 @@ async function toggleDone(task: TaskDTO): Promise<void> {
           <Avatar :user="task.assignedUser ?? undefined" :size="28" />
           <button
             type="button"
-            class="btn-ghost px-2.5 py-1.5 text-xs"
+            class="btn-ghost !px-2.5 !py-1.5 text-xs"
             :aria-label="task.status === 'DONE' ? 'Reopen task' : 'Mark task done'"
             @click="toggleDone(task)"
           >
-            {{ task.status === 'DONE' ? '↩︎' : '✓ Done' }}
+            <RotateCcw v-if="task.status === 'DONE'" :size="14" />
+            <template v-else><Check :size="14" :stroke-width="2.5" /> Done</template>
           </button>
-          <button
-            type="button"
-            class="btn-ghost px-2.5 py-1.5 text-xs"
-            @click="release(task)"
-          >
+          <button type="button" class="btn-ghost !px-2.5 !py-1.5 text-xs" @click="release(task)">
             Release
           </button>
         </template>

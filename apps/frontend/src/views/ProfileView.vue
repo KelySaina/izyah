@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { Check, Download, Moon, Sun } from 'lucide-vue-next';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
 import { ApiError } from '@/services/api';
@@ -94,13 +95,15 @@ async function pickColor(color: string): Promise<void> {
           v-for="color in PRESET_COLORS"
           :key="color"
           type="button"
-          class="h-10 w-10 rounded-full ring-2 ring-offset-2 ring-offset-ink-800 transition active:scale-95"
+          class="grid h-10 w-10 place-items-center rounded-full ring-2 ring-offset-2 ring-offset-ink-800 transition active:scale-95"
           :class="identity.avatar === color ? 'ring-white' : 'ring-transparent'"
           :style="{ backgroundColor: color }"
           :aria-label="'Use color ' + color"
           :aria-pressed="identity.avatar === color"
           @click="pickColor(color)"
-        />
+        >
+          <Check v-if="identity.avatar === color" :size="16" :stroke-width="3" class="text-white drop-shadow" />
+        </button>
       </div>
     </section>
 
@@ -112,10 +115,12 @@ async function pickColor(color: string): Promise<void> {
         class="btn-ghost w-full"
         @click="ui.promptInstall()"
       >
-        📲 Install app
+        <Download :size="18" /> Install app
       </button>
       <button type="button" class="btn-ghost w-full" @click="ui.toggleTheme()">
-        {{ ui.theme === 'dark' ? '🌙 Dark theme' : '☀️ Light theme' }}
+        <Moon v-if="ui.theme === 'dark'" :size="18" />
+        <Sun v-else :size="18" />
+        {{ ui.theme === 'dark' ? 'Dark theme' : 'Light theme' }}
       </button>
     </section>
 

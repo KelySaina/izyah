@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { Camera, Image as ImageIcon } from 'lucide-vue-next';
 import { api, ApiError } from '@/services/api';
 import { pickPhoto } from '@/services/cameraService';
 import { useUiStore } from '@/stores/ui';
@@ -55,14 +56,15 @@ async function add(): Promise<void> {
 <template>
   <section class="space-y-3">
     <button type="button" class="btn-primary w-full" :disabled="uploading" @click="add">
-      {{ uploading ? 'Uploading…' : '📷 Add photo/video' }}
+      <Camera v-if="!uploading" :size="18" />
+      {{ uploading ? 'Uploading…' : 'Add photo / video' }}
     </button>
 
     <p v-if="loading" class="text-sm text-slate-400">Loading media…</p>
 
     <EmptyState
       v-else-if="media.length === 0 && !uploading"
-      icon="🖼️"
+      :icon="ImageIcon"
       title="No photos yet"
       subtitle="Share the first snapshot from this event."
     />

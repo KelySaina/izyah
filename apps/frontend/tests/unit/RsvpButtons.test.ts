@@ -9,9 +9,9 @@ describe('RsvpButtons', () => {
     });
     const buttons = wrapper.findAll('button');
     expect(buttons).toHaveLength(3);
-    // The active (GOING) button carries the brand background class.
+    // The active (GOING) button carries the gold brand background class.
     const going = buttons.find((b) => b.text().includes('Going'));
-    expect(going?.classes().join(' ')).toContain('bg-brand-600');
+    expect(going?.classes().join(' ')).toContain('bg-brand-500');
   });
 
   it('emits change with the chosen status', async () => {

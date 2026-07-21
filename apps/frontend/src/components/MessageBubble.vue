@@ -19,7 +19,7 @@ defineProps<{ message: MessageDTO; mine: boolean }>();
         class="whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm"
         :class="
           mine
-            ? 'rounded-br-md bg-brand-600 text-white'
+            ? 'rounded-br-md bg-brand-500 font-medium text-ink-900'
             : 'rounded-bl-md bg-ink-700 text-slate-100'
         "
       >

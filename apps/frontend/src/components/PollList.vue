@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { BarChart3, Plus, Minus } from 'lucide-vue-next';
 import { api, ApiError } from '@/services/api';
 import { useUiStore } from '@/stores/ui';
 import EmptyState from '@/components/EmptyState.vue';
@@ -97,8 +98,9 @@ async function vote(poll: PollDTO, optionId: string): Promise<void> {
         :aria-expanded="showForm"
         @click="showForm = !showForm"
       >
-        <span>📊 New poll</span>
-        <span class="text-lg leading-none text-slate-400">{{ showForm ? '−' : '+' }}</span>
+        <span class="flex items-center gap-1.5"><BarChart3 :size="16" class="text-brand-400" /> New poll</span>
+        <Minus v-if="showForm" :size="18" class="text-slate-400" />
+        <Plus v-else :size="18" class="text-slate-400" />
       </button>
 
       <form v-if="showForm" class="mt-3 space-y-3" @submit.prevent="createPoll">
@@ -124,15 +126,15 @@ async function vote(poll: PollDTO, optionId: string): Promise<void> {
             <button
               v-if="options.length > 2"
               type="button"
-              class="btn-ghost px-3 text-lg leading-none"
+              class="btn-ghost !px-3"
               aria-label="Remove option"
               @click="removeOption(i)"
             >
-              −
+              <Minus :size="16" />
             </button>
           </div>
           <button type="button" class="btn-ghost text-xs" @click="addOption">
-            + Add option
+            <Plus :size="14" /> Add option
           </button>
         </div>
 
@@ -146,7 +148,7 @@ async function vote(poll: PollDTO, optionId: string): Promise<void> {
 
     <EmptyState
       v-else-if="polls.length === 0"
-      icon="📊"
+      :icon="BarChart3"
       title="No polls yet"
       subtitle="Create one to gather everyone's vote."
     />

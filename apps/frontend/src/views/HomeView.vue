@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
+import { Plus, ArrowRight, CalendarPlus } from 'lucide-vue-next';
 import { useEventsStore } from '@/stores/events';
 import { useUiStore } from '@/stores/ui';
 import { ApiError } from '@/services/api';
@@ -39,16 +40,22 @@ onMounted(async () => {
 <template>
   <div class="space-y-8">
     <!-- Hero -->
-    <section class="pt-4 text-center">
-      <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-brand-600 text-3xl">
-        🎉
-      </div>
-      <h1 class="text-3xl font-black tracking-tight">Events, together.</h1>
-      <p class="mx-auto mt-2 max-w-xs text-sm text-slate-400">
+    <section class="relative pt-2 text-center">
+      <div
+        class="pointer-events-none absolute inset-x-0 -top-8 h-56 bg-[radial-gradient(circle_at_50%_0%,rgba(247,195,49,0.18),transparent_65%)]"
+        aria-hidden="true"
+      />
+      <img
+        src="/icons/logo_app.png"
+        alt="Izy'Ah"
+        class="relative mx-auto w-36 animate-pop-in drop-shadow-[0_10px_30px_rgba(247,195,49,0.25)]"
+      />
+      <h1 class="relative mt-3 font-display text-3xl font-bold tracking-tight">Events, together.</h1>
+      <p class="relative mx-auto mt-2 max-w-xs text-sm text-slate-400">
         Plan, invite, and celebrate — all in one place.
       </p>
-      <RouterLink to="/create" class="btn-primary mt-6 w-full">
-        <span aria-hidden="true">+</span> Create an event
+      <RouterLink to="/create" class="btn-primary relative mt-6 w-full">
+        <Plus :size="18" :stroke-width="2.5" /> Create an event
       </RouterLink>
     </section>
 
@@ -65,15 +72,17 @@ onMounted(async () => {
           inputmode="url"
           autocomplete="off"
         />
-        <button type="submit" class="btn-ghost shrink-0">Join</button>
+        <button type="submit" class="btn-ghost shrink-0 !px-3.5" aria-label="Join event">
+          <ArrowRight :size="18" />
+        </button>
       </form>
     </section>
 
     <!-- Upcoming events -->
     <section class="space-y-3">
-      <h2 class="text-sm font-semibold text-slate-400">Upcoming</h2>
+      <h2 class="text-xs font-bold uppercase tracking-wide text-slate-500">Upcoming</h2>
 
-      <div v-if="events.loading" class="grid place-items-center py-10 text-slate-500">
+      <div v-if="events.loading" class="grid place-items-center py-10">
         <div class="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-brand-500" />
       </div>
 
@@ -83,7 +92,7 @@ onMounted(async () => {
 
       <EmptyState
         v-else
-        icon="🗓️"
+        :icon="CalendarPlus"
         title="No upcoming events"
         subtitle="Be the first to plan something."
       >

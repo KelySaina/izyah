@@ -14,32 +14,48 @@
   body {
     @apply bg-ink-900 text-slate-100 antialiased;
     /* Respect device safe areas (notches) for the installed PWA. */
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-      env(safe-area-inset-left);
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+  /* Punchy, slightly-tightened headings to echo the sticker wordmark. */
+  .display {
+    @apply font-display font-bold tracking-tight;
   }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
-      transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold
+      transition-all duration-150 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none;
   }
+  /* Primary = gold fill + black ink text (the logo's contrast). */
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-500;
+    @apply btn bg-brand-500 text-ink-900 shadow-glow hover:bg-brand-400;
   }
   .btn-ghost {
-    @apply btn bg-ink-700 text-slate-200 hover:bg-ink-600;
+    @apply btn bg-ink-700 text-slate-100 hover:bg-ink-600;
+  }
+  .btn-outline {
+    @apply btn border border-white/10 bg-transparent text-slate-100 hover:bg-white/5;
   }
   .card {
-    @apply rounded-2xl bg-ink-800 border border-white/5 shadow-card;
+    @apply rounded-2xl border border-white/5 bg-ink-800 shadow-card;
   }
   .input {
-    @apply w-full rounded-xl bg-ink-700 border border-white/10 px-3.5 py-2.5 text-sm
-      text-slate-100 placeholder:text-slate-500 outline-none focus:border-brand-500
-      focus:ring-2 focus:ring-brand-500/30;
+    @apply w-full rounded-xl border border-white/10 bg-ink-700 px-3.5 py-3 text-sm text-slate-100
+      placeholder:text-slate-500 outline-none transition
+      focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30;
   }
   .label {
-    @apply block text-xs font-medium text-slate-400 mb-1.5;
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400;
+  }
+  /* Soft gold chip used for pills / highlights. */
+  .chip-gold {
+    @apply inline-flex items-center gap-1 rounded-full bg-brand-500/15 px-2 py-0.5 text-xs font-semibold text-brand-300;
   }
 }
 

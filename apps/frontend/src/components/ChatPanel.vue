@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { MessageCircle, Send } from 'lucide-vue-next';
 import OnlineBadge from '@/components/OnlineBadge.vue';
 import MessageBubble from '@/components/MessageBubble.vue';
 import TypingIndicator from '@/components/TypingIndicator.vue';
@@ -65,7 +66,9 @@ onBeforeUnmount(() => {
   <div class="card flex h-[70vh] flex-col overflow-hidden">
     <!-- Header -->
     <div class="flex items-center justify-between border-b border-white/5 px-3 py-2">
-      <h3 class="text-sm font-semibold text-slate-200">💬 Chat</h3>
+      <h3 class="flex items-center gap-1.5 text-sm font-semibold text-slate-200">
+        <MessageCircle :size="16" class="text-brand-400" /> Chat
+      </h3>
       <OnlineBadge :count="chat.online" />
     </div>
 
@@ -109,12 +112,12 @@ onBeforeUnmount(() => {
       />
       <button
         type="button"
-        class="btn-primary shrink-0"
+        class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-500 text-ink-900 transition active:scale-95 disabled:opacity-40"
         :disabled="!draft.trim()"
         aria-label="Send message"
         @click="send"
       >
-        Send
+        <Send :size="18" />
       </button>
     </div>
   </div>

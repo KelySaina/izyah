@@ -53,7 +53,7 @@ function onSubmit(): void {
   <form class="space-y-4" @submit.prevent="onSubmit">
     <div>
       <label class="label" for="ev-title">Title *</label>
-      <input id="ev-title" v-model="form.title" class="input" placeholder="Rooftop dinner 🌇" />
+      <input id="ev-title" v-model="form.title" class="input" placeholder="Rooftop dinner party" />
     </div>
 
     <div>

@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { RouterLink, RouterView, useRoute } from 'vue-router';
+import { RouterLink, RouterView } from 'vue-router';
 import { useRegisterSW } from 'virtual:pwa-register/vue';
+import { Home as HomeIcon, CalendarDays, User as UserIcon, Plus, Moon, Sun, RefreshCw } from 'lucide-vue-next';
+import Avatar from '@/components/Avatar.vue';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
-import { initials, isColorAvatar } from '@/lib/format';
 
 const identity = useIdentityStore();
 const ui = useUiStore();
-const route = useRoute();
 
 // PWA update lifecycle.
 const { needRefresh, updateServiceWorker } = useRegisterSW();
@@ -19,24 +19,17 @@ onMounted(() => {
     ui.setInstallPrompt(e as never);
   });
 });
-
-const navItems = [
-  { to: '/', label: 'Home', icon: '🏠' },
-  { to: '/dashboard', label: 'Events', icon: '🗓️' },
-  { to: '/profile', label: 'You', icon: '👤' },
-];
 </script>
 
 <template>
   <!-- Splash while the anonymous identity bootstraps -->
-  <div
-    v-if="!identity.ready"
-    class="fixed inset-0 grid place-items-center bg-ink-900 text-center"
-  >
-    <div class="animate-pulse">
-      <div class="mx-auto mb-4 h-16 w-16 rounded-2xl bg-brand-600" />
-      <p class="text-lg font-semibold tracking-tight">Izy'Ah</p>
-      <p class="text-sm text-slate-500">Getting things ready…</p>
+  <div v-if="!identity.ready" class="fixed inset-0 grid place-items-center bg-ink-900 text-center">
+    <div class="flex flex-col items-center">
+      <img src="/icons/logo_app.png" alt="Izy'Ah" class="w-40 animate-pop-in drop-shadow-[0_8px_30px_rgba(247,195,49,0.25)]" />
+      <p class="mt-4 flex items-center gap-2 text-sm text-slate-500">
+        <span class="h-1.5 w-1.5 animate-ping rounded-full bg-brand-500" />
+        Getting things ready…
+      </p>
     </div>
   </div>
 
@@ -46,34 +39,22 @@ const navItems = [
       class="sticky top-0 z-20 flex items-center justify-between border-b border-white/5 bg-ink-900/80 px-4 py-3 backdrop-blur"
     >
       <RouterLink to="/" class="flex items-center gap-2">
-        <span class="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-sm font-black">Iz</span>
-        <span class="text-base font-bold tracking-tight">Izy'Ah</span>
+        <img src="/icons/icon.svg" alt="" class="h-8 w-8 rounded-lg" />
+        <span class="font-display text-lg font-bold tracking-tight">
+          <span class="text-slate-50">IZY</span><span class="text-brand-400">'AH</span>
+        </span>
       </RouterLink>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1.5">
         <button
-          v-if="ui.canInstall"
-          class="btn-ghost !px-3 !py-1.5 text-xs"
-          @click="ui.promptInstall()"
+          class="grid h-9 w-9 place-items-center rounded-full text-slate-300 transition hover:bg-ink-700"
+          :aria-label="ui.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+          @click="ui.toggleTheme()"
         >
-          Install
+          <Moon v-if="ui.theme === 'dark'" :size="18" />
+          <Sun v-else :size="18" />
         </button>
-        <button class="btn-ghost !px-2.5 !py-1.5 text-xs" @click="ui.toggleTheme()">
-          {{ ui.theme === 'dark' ? '🌙' : '☀️' }}
-        </button>
-        <RouterLink to="/profile" aria-label="Your profile">
-          <span
-            v-if="identity.user"
-            class="grid h-8 w-8 place-items-center rounded-full text-xs font-bold text-white"
-            :style="isColorAvatar(identity.avatar) ? { backgroundColor: identity.avatar } : {}"
-          >
-            <img
-              v-if="!isColorAvatar(identity.avatar)"
-              :src="identity.avatar"
-              class="h-8 w-8 rounded-full object-cover"
-              alt=""
-            />
-            <template v-else>{{ initials(identity.displayName) }}</template>
-          </span>
+        <RouterLink to="/profile" aria-label="Your profile" class="ml-0.5">
+          <Avatar :name="identity.displayName" :avatar="identity.avatar" :size="32" />
         </RouterLink>
       </div>
     </header>
@@ -81,10 +62,13 @@ const navItems = [
     <!-- Update available banner -->
     <div
       v-if="needRefresh"
-      class="flex items-center justify-between gap-3 bg-brand-700 px-4 py-2 text-sm"
+      class="flex items-center justify-between gap-3 bg-brand-500 px-4 py-2 text-sm font-medium text-ink-900"
     >
-      <span>A new version is available.</span>
-      <button class="rounded-lg bg-white/20 px-3 py-1 font-semibold" @click="updateServiceWorker(true)">
+      <span class="flex items-center gap-2"><RefreshCw :size="15" /> A new version is available.</span>
+      <button
+        class="rounded-lg bg-ink-900/15 px-3 py-1 font-semibold"
+        @click="updateServiceWorker(true)"
+      >
         Reload
       </button>
     </div>
@@ -98,36 +82,43 @@ const navItems = [
       </RouterView>
     </main>
 
-    <!-- Bottom navigation (mobile-first) -->
+    <!-- Bottom navigation (mobile-first). Create sits in its own slot so it
+         never overlaps a destination label. -->
     <nav
-      class="fixed bottom-0 left-1/2 z-20 flex w-full max-w-md -translate-x-1/2 items-center justify-around border-t border-white/5 bg-ink-900/90 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur"
+      class="fixed bottom-0 left-1/2 z-30 w-full max-w-md -translate-x-1/2 border-t border-white/5 bg-ink-900/90 backdrop-blur"
     >
-      <RouterLink
-        v-for="item in navItems"
-        :key="item.to"
-        :to="item.to"
-        class="flex flex-col items-center gap-0.5 rounded-lg px-4 py-1 text-[11px] font-medium text-slate-400"
-        active-class="!text-brand-400"
-      >
-        <span class="text-lg leading-none">{{ item.icon }}</span>
-        {{ item.label }}
-      </RouterLink>
-      <RouterLink
-        to="/create"
-        class="absolute -top-6 left-1/2 grid h-14 w-14 -translate-x-1/2 place-items-center rounded-full bg-brand-600 text-2xl font-light text-white shadow-lg shadow-brand-900/40 active:scale-95"
-        :class="{ 'ring-4 ring-brand-500/30': route.name === 'create' }"
-        aria-label="Create event"
-      >
-        +
-      </RouterLink>
+      <div class="grid grid-cols-4 items-end px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
+        <RouterLink to="/" class="flex flex-col items-center gap-1 py-1" v-slot="{ isActive }">
+          <HomeIcon :size="22" :stroke-width="isActive ? 2.5 : 2" :class="isActive ? 'text-brand-400' : 'text-slate-400'" />
+          <span class="text-[10px] font-semibold" :class="isActive ? 'text-brand-400' : 'text-slate-500'">Home</span>
+        </RouterLink>
+
+        <RouterLink to="/dashboard" class="flex flex-col items-center gap-1 py-1" v-slot="{ isActive }">
+          <CalendarDays :size="22" :stroke-width="isActive ? 2.5 : 2" :class="isActive ? 'text-brand-400' : 'text-slate-400'" />
+          <span class="text-[10px] font-semibold" :class="isActive ? 'text-brand-400' : 'text-slate-500'">Events</span>
+        </RouterLink>
+
+        <RouterLink to="/create" class="flex items-center justify-center" aria-label="Create event">
+          <span
+            class="-mt-8 grid h-14 w-14 place-items-center rounded-full bg-brand-500 text-ink-900 shadow-glow ring-4 ring-ink-900 transition active:scale-95"
+          >
+            <Plus :size="26" :stroke-width="2.75" />
+          </span>
+        </RouterLink>
+
+        <RouterLink to="/profile" class="flex flex-col items-center gap-1 py-1" v-slot="{ isActive }">
+          <UserIcon :size="22" :stroke-width="isActive ? 2.5 : 2" :class="isActive ? 'text-brand-400' : 'text-slate-400'" />
+          <span class="text-[10px] font-semibold" :class="isActive ? 'text-brand-400' : 'text-slate-500'">You</span>
+        </RouterLink>
+      </div>
     </nav>
 
     <!-- Toast host -->
-    <div class="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex flex-col items-center gap-2 px-4">
+    <div class="pointer-events-none fixed inset-x-0 bottom-24 z-40 flex flex-col items-center gap-2 px-4">
       <div
         v-for="t in ui.toasts"
         :key="t.id"
-        class="pointer-events-auto w-full max-w-sm rounded-xl px-4 py-2.5 text-sm font-medium shadow-lg"
+        class="pointer-events-auto w-full max-w-sm animate-pop-in rounded-xl px-4 py-2.5 text-sm font-medium shadow-lg"
         :class="{
           'bg-ink-700 text-slate-100': t.type === 'info',
           'bg-emerald-600 text-white': t.type === 'success',
