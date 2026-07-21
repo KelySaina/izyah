@@ -71,7 +71,7 @@ onMounted(() => {
     </div>
 
     <!-- Routed page -->
-    <main class="flex-1 px-4 pb-28 pt-4">
+    <main class="flex-1 px-4 pb-32 pt-4">
       <RouterView v-slot="{ Component }">
         <transition name="fade" mode="out-in">
           <component :is="Component" />
@@ -79,11 +79,23 @@ onMounted(() => {
       </RouterView>
     </main>
 
-    <!-- Bottom navigation: four balanced tabs on one baseline. -->
+    <!-- Floating create button — parked above the top-right of the bottom bar,
+         separate from the nav items so it never crowds or hides a label. -->
+    <div class="pointer-events-none fixed bottom-0 left-1/2 z-40 h-0 w-full max-w-md -translate-x-1/2">
+      <RouterLink
+        to="/create"
+        aria-label="Create event"
+        class="pointer-events-auto absolute right-4 bottom-[calc(4.75rem_+_env(safe-area-inset-bottom))] grid h-14 w-14 place-items-center rounded-full bg-brand-500 text-ink-900 shadow-glow ring-1 ring-black/5 transition active:scale-90"
+      >
+        <Plus :size="28" :stroke-width="2.75" />
+      </RouterLink>
+    </div>
+
+    <!-- Bottom navigation: three destinations, evenly spaced. -->
     <nav
       class="fixed bottom-0 left-1/2 z-30 w-full max-w-md -translate-x-1/2 border-t border-line/10 bg-app/90 backdrop-blur"
     >
-      <div class="grid grid-cols-4 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5">
+      <div class="grid grid-cols-3 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5">
         <RouterLink to="/" class="flex flex-col items-center gap-1 py-1" v-slot="{ isActive }">
           <span class="flex h-8 items-center justify-center">
             <HomeIcon :size="22" :stroke-width="isActive ? 2.5 : 2" :class="isActive ? 'text-accent' : 'text-fg-2'" />
@@ -96,18 +108,6 @@ onMounted(() => {
             <CalendarDays :size="22" :stroke-width="isActive ? 2.5 : 2" :class="isActive ? 'text-accent' : 'text-fg-2'" />
           </span>
           <span class="text-[10px] font-semibold" :class="isActive ? 'text-accent' : 'text-fg-3'">Events</span>
-        </RouterLink>
-
-        <RouterLink to="/create" class="flex flex-col items-center gap-1 py-1" v-slot="{ isActive }">
-          <span class="flex h-8 items-center justify-center">
-            <span
-              class="grid h-9 w-9 place-items-center rounded-full bg-brand-500 text-ink-900 shadow-glow transition active:scale-90"
-              :class="{ 'ring-2 ring-brand-400/50': isActive }"
-            >
-              <Plus :size="20" :stroke-width="2.75" />
-            </span>
-          </span>
-          <span class="text-[10px] font-semibold" :class="isActive ? 'text-accent' : 'text-fg-3'">Create</span>
         </RouterLink>
 
         <RouterLink to="/profile" class="flex flex-col items-center gap-1 py-1" v-slot="{ isActive }">
