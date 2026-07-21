@@ -11,6 +11,15 @@ const csv = (v: string) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
+// z.coerce.boolean() uses Boolean(value), so ANY non-empty string is true —
+// including "false". Parse env booleans explicitly instead.
+const envBool = (def: boolean) =>
+  z.preprocess((v) => {
+    if (v === undefined || v === '') return def;
+    if (typeof v === 'boolean') return v;
+    return /^(1|true|yes|on)$/i.test(String(v).trim());
+  }, z.boolean());
+
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(4000),
@@ -20,22 +29,22 @@ const schema = z.object({
 
   CORS_ORIGINS: z.string().default('http://localhost:5173').transform(csv),
 
-  SEED_ON_START: z.coerce.boolean().default(false),
+  SEED_ON_START: envBool(false),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().default(120),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
-  ANALYTICS_ENABLED: z.coerce.boolean().default(true),
+  ANALYTICS_ENABLED: envBool(true),
 
   MINIO_ENDPOINT: z.string().default('minio'),
   MINIO_PORT: z.coerce.number().default(9000),
-  MINIO_USE_SSL: z.coerce.boolean().default(false),
+  MINIO_USE_SSL: envBool(false),
   MINIO_ROOT_USER: z.string().default('izyah-minio'),
   MINIO_ROOT_PASSWORD: z.string().default('izyah_minio_dev_password_change_me'),
   MINIO_BUCKET_MEDIA: z.string().default('izyah-media'),
   MINIO_BUCKET_AVATARS: z.string().default('izyah-avatars'),
   MINIO_PUBLIC_URL: z.string().default('http://localhost:9000'),
 
-  RUN_WORKER_INLINE: z.coerce.boolean().default(false),
+  RUN_WORKER_INLINE: envBool(false),
 });
 
 const parsed = schema.safeParse(process.env);
