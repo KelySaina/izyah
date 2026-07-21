@@ -1,0 +1,25 @@
+# Traefik v3 dynamic configuration — shared middlewares.
+# Attach to routers with e.g. `traefik.http.routers.X.middlewares=security-headers@file`.
+
+http:
+  middlewares:
+    security-headers:
+      headers:
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: strict-origin-when-cross-origin
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        customResponseHeaders:
+          X-Powered-By: ""
+          Server: ""
+
+    # Basic in-proxy rate limit (defense in depth; the app also rate-limits).
+    edge-ratelimit:
+      rateLimit:
+        average: 100
+        burst: 50
+
+    compress:
+      compress: {}

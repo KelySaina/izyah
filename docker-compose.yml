@@ -1,0 +1,222 @@
+# ============================================================================
+# Izy'Ah — full stack. `docker compose up --build` boots everything.
+#
+#   User ──► Traefik ──► Frontend (nginx, static Vue build)
+#                   └──► Backend  (Express REST + Socket.IO)
+#
+#   Backend ──► PostgreSQL, Redis, MinIO
+#
+# For local dev with hot reload run only the infra profile and start the apps
+# natively (see README):  docker compose -f docker-compose.dev.yml up
+# ============================================================================
+
+networks:
+  izyah:
+    name: izyah
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+
+services:
+  # --------------------------------------------------------------------------
+  # Reverse proxy
+  # --------------------------------------------------------------------------
+  traefik:
+    image: traefik:v3.1
+    container_name: izyah-traefik
+    restart: unless-stopped
+    command:
+      - --configFile=/etc/traefik/traefik.yml
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./infra/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.entrypoints=web
+    networks:
+      - izyah
+
+  # --------------------------------------------------------------------------
+  # Database
+  # --------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: izyah-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - izyah
+
+  # --------------------------------------------------------------------------
+  # Cache / pub-sub / queues
+  # --------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: izyah-redis
+    restart: unless-stopped
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - redis-data:/data
+      - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - izyah
+
+  # --------------------------------------------------------------------------
+  # Object storage (S3 compatible)
+  # --------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: izyah-storage
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    labels:
+      - traefik.enable=true
+      # Browser access to objects (S3 API) at minio.izyah.localhost
+      - traefik.http.routers.minio.rule=Host(`${MINIO_CONSOLE_DOMAIN}`)
+      - traefik.http.routers.minio.entrypoints=web
+      - traefik.http.services.minio.loadbalancer.server.port=9000
+    networks:
+      - izyah
+
+  # One-shot: create buckets + set public-read policy on media.
+  minio-init:
+    image: minio/mc:latest
+    container_name: izyah-storage-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET_MEDIA: ${MINIO_BUCKET_MEDIA}
+      MINIO_BUCKET_AVATARS: ${MINIO_BUCKET_AVATARS}
+    entrypoint: ["/bin/sh", "/create-buckets.sh"]
+    volumes:
+      - ./infra/minio/create-buckets.sh:/create-buckets.sh:ro
+    networks:
+      - izyah
+
+  # --------------------------------------------------------------------------
+  # Database administration tool
+  # --------------------------------------------------------------------------
+  adminer:
+    image: adminer:latest
+    container_name: izyah-adminer
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: dracula
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.adminer.rule=Host(`${ADMINER_DOMAIN}`)
+      - traefik.http.routers.adminer.entrypoints=web
+      - traefik.http.services.adminer.loadbalancer.server.port=8080
+    networks:
+      - izyah
+
+  # --------------------------------------------------------------------------
+  # Backend API (Express REST + Socket.IO)
+  # --------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    image: izyah-backend
+    container_name: izyah-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${BACKEND_PORT}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      SEED_ON_START: ${SEED_ON_START}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX}
+      LOG_LEVEL: ${LOG_LEVEL}
+      ANALYTICS_ENABLED: ${ANALYTICS_ENABLED}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_PORT: ${MINIO_PORT}
+      MINIO_USE_SSL: ${MINIO_USE_SSL}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET_MEDIA: ${MINIO_BUCKET_MEDIA}
+      MINIO_BUCKET_AVATARS: ${MINIO_BUCKET_AVATARS}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
+      RUN_WORKER_INLINE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.backend.rule=Host(`${API_DOMAIN}`)
+      - traefik.http.routers.backend.entrypoints=web
+      - traefik.http.services.backend.loadbalancer.server.port=4000
+      # Socket.IO needs sticky sessions once you scale to >1 replica.
+      - traefik.http.services.backend.loadbalancer.sticky.cookie=true
+    networks:
+      - izyah
+
+  # --------------------------------------------------------------------------
+  # Frontend (static Vue build, served by nginx)
+  # --------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+        VITE_SOCKET_URL: ${VITE_SOCKET_URL}
+    image: izyah-frontend
+    container_name: izyah-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.frontend.rule=Host(`${APP_DOMAIN}`)
+      - traefik.http.routers.frontend.entrypoints=web
+      - traefik.http.services.frontend.loadbalancer.server.port=80
+    networks:
+      - izyah

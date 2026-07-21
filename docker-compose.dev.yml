@@ -1,0 +1,93 @@
+# ============================================================================
+# Dev infrastructure only. Run the Vue/Express apps natively on the host with
+# hot reload, pointed at these containers.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#   (cd apps/backend && npm run dev)
+#   (cd apps/frontend && npm run dev)
+#
+# Ports are published to localhost so host processes can reach them directly.
+# ============================================================================
+
+networks:
+  izyah-dev:
+    name: izyah-dev
+
+volumes:
+  postgres-data-dev:
+  redis-data-dev:
+  minio-data-dev:
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: izyah-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-izyah}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-izyah_dev_password_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-izyah}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-izyah}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - izyah-dev
+
+  redis:
+    image: redis:7-alpine
+    container_name: izyah-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data-dev:/data
+    networks:
+      - izyah-dev
+
+  minio:
+    image: minio/minio:latest
+    container_name: izyah-storage-dev
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-izyah-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-izyah_minio_dev_password_change_me}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data-dev:/data
+    networks:
+      - izyah-dev
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-izyah-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-izyah_minio_dev_password_change_me}
+      MINIO_BUCKET_MEDIA: ${MINIO_BUCKET_MEDIA:-izyah-media}
+      MINIO_BUCKET_AVATARS: ${MINIO_BUCKET_AVATARS:-izyah-avatars}
+    entrypoint: ["/bin/sh", "/create-buckets.sh"]
+    volumes:
+      - ./infra/minio/create-buckets.sh:/create-buckets.sh:ro
+    networks:
+      - izyah-dev
+
+  adminer:
+    image: adminer:latest
+    container_name: izyah-adminer-dev
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    networks:
+      - izyah-dev

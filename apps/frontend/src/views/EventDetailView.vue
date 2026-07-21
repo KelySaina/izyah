@@ -1,0 +1,163 @@
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue';
+import { RouterLink } from 'vue-router';
+import Avatar from '@/components/Avatar.vue';
+import DateBadge from '@/components/DateBadge.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import RsvpButtons from '@/components/RsvpButtons.vue';
+import AttendeeList from '@/components/AttendeeList.vue';
+import ShareSheet from '@/components/ShareSheet.vue';
+import ChatPanel from '@/components/ChatPanel.vue';
+import TaskList from '@/components/TaskList.vue';
+import PollList from '@/components/PollList.vue';
+import MediaGallery from '@/components/MediaGallery.vue';
+import { useEventsStore } from '@/stores/events';
+import { useIdentityStore } from '@/stores/identity';
+import { useUiStore } from '@/stores/ui';
+import { ApiError } from '@/services/api';
+import { formatDate, formatTimeRange } from '@/lib/format';
+import type { RsvpStatus } from '@/types';
+
+const props = defineProps<{ idOrSlug: string }>();
+
+const events = useEventsStore();
+const identity = useIdentityStore();
+const ui = useUiStore();
+
+const loading = ref(true);
+const notFound = ref(false);
+
+type Tab = 'chat' | 'tasks' | 'polls' | 'media';
+const tab = ref<Tab>('chat');
+const tabs: { key: Tab; label: string }[] = [
+  { key: 'chat', label: '💬 Chat' },
+  { key: 'tasks', label: '✅ Tasks' },
+  { key: 'polls', label: '📊 Polls' },
+  { key: 'media', label: '🖼️ Media' },
+];
+
+const event = computed(() => events.current);
+const isCreator = computed(() => !!event.value && identity.id === event.value.creatorId);
+
+async function load(idOrSlug: string): Promise<void> {
+  loading.value = true;
+  notFound.value = false;
+  try {
+    const e = await events.fetchEvent(idOrSlug);
+    await events.fetchAttendees(e.id);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound.value = true;
+    else ui.toast(err instanceof ApiError ? err.message : 'Something went wrong', 'error');
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(() => load(props.idOrSlug));
+// Support navigating between events without unmounting the view.
+watch(
+  () => props.idOrSlug,
+  (next) => load(next),
+);
+
+async function onRsvp(status: RsvpStatus): Promise<void> {
+  if (!event.value) return;
+  try {
+    await events.setRsvp(event.value.id, status);
+    ui.toast("You're on the list", 'success');
+  } catch (err) {
+    ui.toast(err instanceof ApiError ? err.message : 'Something went wrong', 'error');
+  }
+}
+</script>
+
+<template>
+  <div v-if="loading" class="grid place-items-center py-16 text-sm text-slate-500">Loading…</div>
+
+  <EmptyState
+    v-else-if="notFound || !event"
+    icon="🧭"
+    title="Event not found"
+    subtitle="This link may be wrong or the event was removed."
+  >
+    <RouterLink to="/" class="btn-primary">Back home</RouterLink>
+  </EmptyState>
+
+  <div v-else class="space-y-6">
+    <!-- Cover -->
+    <img
+      v-if="event.coverImage"
+      :src="event.coverImage"
+      :alt="event.title"
+      class="-mx-4 -mt-4 h-48 w-[calc(100%+2rem)] object-cover"
+    />
+
+    <!-- Header -->
+    <header class="space-y-3">
+      <div class="flex items-start gap-3">
+        <DateBadge :date="event.date" />
+        <div class="min-w-0 flex-1">
+          <h1 class="text-2xl font-bold leading-tight tracking-tight">{{ event.title }}</h1>
+          <p class="mt-1 text-sm text-slate-400">{{ formatDate(event.date) }}</p>
+          <p v-if="event.startTime" class="text-sm text-slate-400">
+            🕒 {{ formatTimeRange(event.startTime, event.endTime) }}
+          </p>
+          <p v-if="event.location" class="text-sm text-slate-400">📍 {{ event.location }}</p>
+        </div>
+        <RouterLink
+          v-if="isCreator"
+          :to="`/event/${event.id}/edit`"
+          class="btn-ghost !px-3 !py-1.5 text-xs"
+        >
+          Edit
+        </RouterLink>
+      </div>
+
+      <div v-if="event.creator" class="flex items-center gap-2 text-sm text-slate-400">
+        <Avatar :user="event.creator" :size="24" />
+        <span>Hosted by {{ event.creator.displayName }}</span>
+      </div>
+
+      <p v-if="event.description" class="whitespace-pre-wrap text-sm text-slate-300">
+        {{ event.description }}
+      </p>
+    </header>
+
+    <!-- RSVP -->
+    <RsvpButtons :status="event.viewerStatus" :counts="event.counts" @change="onRsvp" />
+
+    <!-- Attendees -->
+    <section class="card space-y-3 p-4">
+      <h2 class="text-sm font-semibold text-slate-200">Who's coming</h2>
+      <AttendeeList
+        :attendees="events.attendees"
+        :counts="events.counts"
+        :online="event.onlineCount"
+      />
+    </section>
+
+    <!-- Share / calendar -->
+    <ShareSheet :event="event" />
+
+    <!-- Tabs -->
+    <div>
+      <div class="no-scrollbar mb-3 flex gap-2 overflow-x-auto">
+        <button
+          v-for="t in tabs"
+          :key="t.key"
+          type="button"
+          class="whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition"
+          :class="tab === t.key ? 'bg-brand-600 text-white' : 'bg-ink-700 text-slate-300'"
+          @click="tab = t.key"
+        >
+          {{ t.label }}
+        </button>
+      </div>
+
+      <ChatPanel v-if="tab === 'chat'" :key="`chat-${event.id}`" :event-id="event.id" />
+      <TaskList v-else-if="tab === 'tasks'" :key="`tasks-${event.id}`" :event-id="event.id" />
+      <PollList v-else-if="tab === 'polls'" :key="`polls-${event.id}`" :event-id="event.id" />
+      <MediaGallery v-else :key="`media-${event.id}`" :event-id="event.id" />
+    </div>
+  </div>
+</template>

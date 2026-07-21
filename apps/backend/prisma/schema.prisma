@@ -1,0 +1,261 @@
+// Izy'Ah — Prisma schema
+// Attendee-first event platform. Passwordless anonymous identity.
+// The identity model is intentionally minimal now but carries nullable
+// columns (email / phone / googleId) so account-linking can be added later
+// WITHOUT a destructive migration.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  displayName String   @default("Guest")
+  // avatar stores a color token (e.g. "#7C3AED") or a MinIO object URL.
+  avatar      String   @default("#7C3AED")
+  createdAt   DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  // ---- Future account-linking columns (unused in MVP, kept nullable) ----
+  email       String?  @unique
+  phone       String?  @unique
+  googleId    String?  @unique
+  isClaimed   Boolean  @default(false)
+
+  createdEvents Event[]            @relation("EventCreator")
+  participations EventParticipant[]
+  messages      Message[]
+  media         Media[]
+  assignedTasks Task[]
+  pollVotes     PollVote[]
+  notifications Notification[]
+
+  @@index([lastSeenAt])
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+
+model Event {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  description String?
+  // `date` is the event day; startTime / endTime are optional wall-clock times.
+  date        DateTime
+  startTime   String?
+  endTime     String?
+  location    String?
+  coverImage  String?
+  // Public share slug -> izyah.app/event/{slug}
+  slug        String   @unique @default(cuid())
+  visibility  EventVisibility @default(PUBLIC)
+
+  creatorId   String   @db.Uuid
+  creator     User     @relation("EventCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  participants EventParticipant[]
+  messages     Message[]
+  media        Media[]
+  tasks        Task[]
+  polls        Poll[]
+
+  @@index([creatorId])
+  @@index([date])
+  @@map("events")
+}
+
+enum EventVisibility {
+  PUBLIC
+  UNLISTED
+  PRIVATE
+}
+
+// ---------------------------------------------------------------------------
+// Participation / RSVP
+// ---------------------------------------------------------------------------
+
+model EventParticipant {
+  id       String     @id @default(uuid()) @db.Uuid
+  eventId  String     @db.Uuid
+  userId   String     @db.Uuid
+  status   RsvpStatus @default(GOING)
+  role     ParticipantRole @default(GUEST)
+  joinedAt DateTime   @default(now())
+  updatedAt DateTime  @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One RSVP row per (event,user).
+  @@unique([eventId, userId])
+  @@index([eventId, status])
+  @@map("event_participants")
+}
+
+enum RsvpStatus {
+  GOING
+  MAYBE
+  NOT_GOING
+}
+
+enum ParticipantRole {
+  HOST
+  GUEST
+}
+
+// ---------------------------------------------------------------------------
+// Chat
+// ---------------------------------------------------------------------------
+
+model Message {
+  id        String   @id @default(uuid()) @db.Uuid
+  eventId   String   @db.Uuid
+  userId    String   @db.Uuid
+  content   String
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, createdAt])
+  @@map("messages")
+}
+
+// ---------------------------------------------------------------------------
+// Media (V2)
+// ---------------------------------------------------------------------------
+
+model Media {
+  id        String    @id @default(uuid()) @db.Uuid
+  eventId   String    @db.Uuid
+  userId    String    @db.Uuid
+  // Object key in MinIO; url is a (possibly presigned) access URL.
+  objectKey String
+  url       String
+  type      MediaType @default(IMAGE)
+  status    MediaStatus @default(READY)
+  width     Int?
+  height    Int?
+  sizeBytes Int?
+  createdAt DateTime  @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, createdAt])
+  @@map("media")
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum MediaStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+// ---------------------------------------------------------------------------
+// Tasks (V2)
+// ---------------------------------------------------------------------------
+
+model Task {
+  id             String     @id @default(uuid()) @db.Uuid
+  eventId        String     @db.Uuid
+  title          String
+  assignedUserId String?    @db.Uuid
+  status         TaskStatus @default(OPEN)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  event        Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  assignedUser User? @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, status])
+  @@map("tasks")
+}
+
+enum TaskStatus {
+  OPEN
+  CLAIMED
+  DONE
+}
+
+// ---------------------------------------------------------------------------
+// Polls (V2)
+// ---------------------------------------------------------------------------
+
+model Poll {
+  id        String   @id @default(uuid()) @db.Uuid
+  eventId   String   @db.Uuid
+  question  String
+  closesAt  DateTime?
+  createdAt DateTime @default(now())
+
+  event   Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  options PollOption[]
+
+  @@index([eventId])
+  @@map("polls")
+}
+
+model PollOption {
+  id     String @id @default(uuid()) @db.Uuid
+  pollId String @db.Uuid
+  text   String
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@index([pollId])
+  @@map("poll_options")
+}
+
+model PollVote {
+  id       String @id @default(uuid()) @db.Uuid
+  optionId String @db.Uuid
+  userId   String @db.Uuid
+
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One vote per user per option.
+  @@unique([optionId, userId])
+  @@index([userId])
+  @@map("poll_votes")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications (V2)
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  type      String
+  payload   Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@map("notifications")
+}
