@@ -11,7 +11,7 @@ defineProps<{ message: MessageDTO; mine: boolean }>();
     <Avatar v-if="!mine" :user="message.user" :size="28" class="shrink-0" />
 
     <div class="flex max-w-[78%] flex-col" :class="mine ? 'items-end' : 'items-start'">
-      <span v-if="!mine" class="mb-0.5 px-1 text-xs font-medium text-slate-400">
+      <span v-if="!mine" class="mb-0.5 px-1 text-xs font-medium text-fg-2">
         {{ message.user.displayName }}
       </span>
 
@@ -20,13 +20,13 @@ defineProps<{ message: MessageDTO; mine: boolean }>();
         :class="
           mine
             ? 'rounded-br-md bg-brand-500 font-medium text-ink-900'
-            : 'rounded-bl-md bg-ink-700 text-slate-100'
+            : 'rounded-bl-md bg-surface-2 text-fg'
         "
       >
         {{ message.content }}
       </div>
 
-      <span class="mt-0.5 px-1 text-[10px] text-slate-500">
+      <span class="mt-0.5 px-1 text-[10px] text-fg-3">
         {{ timeOfDay(message.createdAt) }}
       </span>
     </div>

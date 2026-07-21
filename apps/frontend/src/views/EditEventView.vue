@@ -75,10 +75,10 @@ async function onDelete(): Promise<void> {
   <div class="space-y-5">
     <h1 class="text-xl font-bold tracking-tight">Edit event</h1>
 
-    <p v-if="loading" class="text-sm text-slate-400">Loading…</p>
+    <p v-if="loading" class="text-sm text-fg-2">Loading…</p>
 
     <template v-else-if="event">
-      <p v-if="!isCreator" class="rounded-xl bg-ink-700 px-3 py-2 text-xs text-slate-400">
+      <p v-if="!isCreator" class="rounded-xl bg-surface-2 px-3 py-2 text-xs text-fg-2">
         Only the creator can save changes.
       </p>
 
@@ -99,6 +99,6 @@ async function onDelete(): Promise<void> {
       </button>
     </template>
 
-    <p v-else class="text-sm text-slate-400">Event not found.</p>
+    <p v-else class="text-sm text-fg-2">Event not found.</p>
   </div>
 </template>

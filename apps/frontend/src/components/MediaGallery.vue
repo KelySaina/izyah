@@ -60,7 +60,7 @@ async function add(): Promise<void> {
       {{ uploading ? 'Uploading…' : 'Add photo / video' }}
     </button>
 
-    <p v-if="loading" class="text-sm text-slate-400">Loading media…</p>
+    <p v-if="loading" class="text-sm text-fg-2">Loading media…</p>
 
     <EmptyState
       v-else-if="media.length === 0 && !uploading"
@@ -73,7 +73,7 @@ async function add(): Promise<void> {
       <!-- Optimistic uploading placeholder -->
       <div
         v-if="uploading"
-        class="flex aspect-square animate-pulse items-center justify-center rounded-lg bg-ink-700 text-xs text-slate-400"
+        class="flex aspect-square animate-pulse items-center justify-center rounded-lg bg-surface-2 text-xs text-fg-2"
       >
         Uploading…
       </div>
@@ -81,7 +81,7 @@ async function add(): Promise<void> {
       <div
         v-for="item in media"
         :key="item.id"
-        class="relative aspect-square overflow-hidden rounded-lg bg-ink-700"
+        class="relative aspect-square overflow-hidden rounded-lg bg-surface-2"
       >
         <img
           v-if="item.type === 'IMAGE'"
@@ -94,7 +94,7 @@ async function add(): Promise<void> {
 
         <span
           v-if="item.status !== 'READY'"
-          class="absolute left-1 top-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-slate-200"
+          class="absolute left-1 top-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white"
         >
           {{ item.status }}
         </span>

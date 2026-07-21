@@ -51,7 +51,7 @@ onMounted(async () => {
         class="relative mx-auto w-36 animate-pop-in drop-shadow-[0_10px_30px_rgba(247,195,49,0.25)]"
       />
       <h1 class="relative mt-3 font-display text-3xl font-bold tracking-tight">Events, together.</h1>
-      <p class="relative mx-auto mt-2 max-w-xs text-sm text-slate-400">
+      <p class="relative mx-auto mt-2 max-w-xs text-sm text-fg-2">
         Plan, invite, and celebrate — all in one place.
       </p>
       <RouterLink to="/create" class="btn-primary relative mt-6 w-full">
@@ -80,10 +80,10 @@ onMounted(async () => {
 
     <!-- Upcoming events -->
     <section class="space-y-3">
-      <h2 class="text-xs font-bold uppercase tracking-wide text-slate-500">Upcoming</h2>
+      <h2 class="text-xs font-bold uppercase tracking-wide text-fg-3">Upcoming</h2>
 
       <div v-if="events.loading" class="grid place-items-center py-10">
-        <div class="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-brand-500" />
+        <div class="h-8 w-8 animate-spin rounded-full border-2 border-line/20 border-t-brand-500" />
       </div>
 
       <div v-else-if="events.events.length" class="space-y-3">

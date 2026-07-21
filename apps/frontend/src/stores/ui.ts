@@ -14,8 +14,14 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+const THEME_KEY = 'izyah.theme';
+const THEME_COLORS = { dark: '#101012', light: '#fafaf9' } as const;
+
 export const useUiStore = defineStore('ui', () => {
-  const theme = ref<'dark' | 'light'>('dark');
+  // Seed from the class the inline bootstrap script already set (no flash).
+  const initialDark =
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+  const theme = ref<'dark' | 'light'>(initialDark ? 'dark' : 'light');
   const toasts = ref<Toast[]>([]);
   const deferredInstall = ref<BeforeInstallPromptEvent | null>(null);
   const canInstall = computed(() => deferredInstall.value !== null);
@@ -33,9 +39,16 @@ export const useUiStore = defineStore('ui', () => {
 
   function applyTheme(): void {
     document.documentElement.classList.toggle('dark', theme.value === 'dark');
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', THEME_COLORS[theme.value]);
   }
   function toggleTheme(): void {
     theme.value = theme.value === 'dark' ? 'light' : 'dark';
+    try {
+      localStorage.setItem(THEME_KEY, theme.value);
+    } catch {
+      /* private mode — ignore */
+    }
     applyTheme();
   }
 

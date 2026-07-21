@@ -13,7 +13,7 @@ defineProps<{
 <template>
   <div class="space-y-3">
     <div class="flex items-center justify-between gap-3">
-      <p class="text-sm text-slate-400">Going {{ counts.going }} · Maybe {{ counts.maybe }}</p>
+      <p class="text-sm text-fg-2">Going {{ counts.going }} · Maybe {{ counts.maybe }}</p>
       <OnlineBadge :count="online ?? 0" />
     </div>
     <div class="flex flex-wrap gap-3">

@@ -19,7 +19,7 @@ const options: { value: RsvpStatus; label: string; icon: Component; countKey: ke
 </script>
 
 <template>
-  <div class="grid grid-cols-3 gap-1.5 rounded-2xl bg-ink-800 p-1.5">
+  <div class="grid grid-cols-3 gap-1.5 rounded-2xl bg-surface p-1.5">
     <button
       v-for="opt in options"
       :key="opt.value"
@@ -28,7 +28,7 @@ const options: { value: RsvpStatus; label: string; icon: Component; countKey: ke
       :class="
         opt.value === status
           ? 'bg-brand-500 text-ink-900 shadow-glow'
-          : 'text-slate-300 hover:bg-ink-700'
+          : 'text-fg-2 hover:bg-surface-2'
       "
       :aria-pressed="opt.value === status"
       @click="emit('change', opt.value)"

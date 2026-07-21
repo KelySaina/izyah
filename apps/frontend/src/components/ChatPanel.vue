@@ -65,9 +65,9 @@ onBeforeUnmount(() => {
 <template>
   <div class="card flex h-[70vh] flex-col overflow-hidden">
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-white/5 px-3 py-2">
-      <h3 class="flex items-center gap-1.5 text-sm font-semibold text-slate-200">
-        <MessageCircle :size="16" class="text-brand-400" /> Chat
+    <div class="flex items-center justify-between border-b border-line/10 px-3 py-2">
+      <h3 class="flex items-center gap-1.5 text-sm font-semibold text-fg">
+        <MessageCircle :size="16" class="text-accent" /> Chat
       </h3>
       <OnlineBadge :count="chat.online" />
     </div>
@@ -76,14 +76,14 @@ onBeforeUnmount(() => {
     <div ref="listEl" class="flex-1 space-y-3 overflow-y-auto px-3 py-3">
       <div
         v-if="chat.loading"
-        class="grid h-full place-items-center text-sm text-slate-500"
+        class="grid h-full place-items-center text-sm text-fg-3"
       >
         Loading messages…
       </div>
 
       <div
         v-else-if="!chat.messages.length"
-        class="grid h-full place-items-center px-6 text-center text-sm text-slate-500"
+        class="grid h-full place-items-center px-6 text-center text-sm text-fg-3"
       >
         <span>No messages yet — say hi 👋</span>
       </div>
@@ -100,7 +100,7 @@ onBeforeUnmount(() => {
     <TypingIndicator :names="chat.typingNames" />
 
     <!-- Composer -->
-    <div class="flex items-end gap-2 border-t border-white/5 p-2">
+    <div class="flex items-end gap-2 border-t border-line/10 p-2">
       <textarea
         v-model="draft"
         rows="1"

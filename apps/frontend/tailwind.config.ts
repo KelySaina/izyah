@@ -28,6 +28,16 @@ export default {
           600: '#2C2C32',
           500: '#3A3A42',
         },
+        // Semantic, theme-aware tokens (backed by CSS vars in style.css).
+        app: 'rgb(var(--c-app) / <alpha-value>)',
+        surface: 'rgb(var(--c-surface) / <alpha-value>)',
+        'surface-2': 'rgb(var(--c-surface-2) / <alpha-value>)',
+        'surface-3': 'rgb(var(--c-surface-3) / <alpha-value>)',
+        line: 'rgb(var(--c-line) / <alpha-value>)',
+        fg: 'rgb(var(--c-fg) / <alpha-value>)',
+        'fg-2': 'rgb(var(--c-fg-2) / <alpha-value>)',
+        'fg-3': 'rgb(var(--c-fg-3) / <alpha-value>)',
+        accent: 'rgb(var(--c-accent) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],

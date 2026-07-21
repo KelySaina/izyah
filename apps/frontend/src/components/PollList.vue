@@ -94,13 +94,13 @@ async function vote(poll: PollDTO, optionId: string): Promise<void> {
     <div class="card p-3">
       <button
         type="button"
-        class="flex w-full items-center justify-between text-sm font-semibold text-slate-100"
+        class="flex w-full items-center justify-between text-sm font-semibold text-fg"
         :aria-expanded="showForm"
         @click="showForm = !showForm"
       >
-        <span class="flex items-center gap-1.5"><BarChart3 :size="16" class="text-brand-400" /> New poll</span>
-        <Minus v-if="showForm" :size="18" class="text-slate-400" />
-        <Plus v-else :size="18" class="text-slate-400" />
+        <span class="flex items-center gap-1.5"><BarChart3 :size="16" class="text-accent" /> New poll</span>
+        <Minus v-if="showForm" :size="18" class="text-fg-2" />
+        <Plus v-else :size="18" class="text-fg-2" />
       </button>
 
       <form v-if="showForm" class="mt-3 space-y-3" @submit.prevent="createPoll">
@@ -144,7 +144,7 @@ async function vote(poll: PollDTO, optionId: string): Promise<void> {
       </form>
     </div>
 
-    <p v-if="loading" class="text-sm text-slate-400">Loading polls…</p>
+    <p v-if="loading" class="text-sm text-fg-2">Loading polls…</p>
 
     <EmptyState
       v-else-if="polls.length === 0"
@@ -155,7 +155,7 @@ async function vote(poll: PollDTO, optionId: string): Promise<void> {
 
     <ul v-else class="space-y-3">
       <li v-for="poll in polls" :key="poll.id" class="card space-y-3 p-4">
-        <h3 class="text-sm font-semibold text-slate-100">{{ poll.question }}</h3>
+        <h3 class="text-sm font-semibold text-fg">{{ poll.question }}</h3>
 
         <ul class="space-y-2">
           <li v-for="option in poll.options" :key="option.id">
@@ -164,8 +164,8 @@ async function vote(poll: PollDTO, optionId: string): Promise<void> {
               class="relative w-full overflow-hidden rounded-xl border px-3 py-2 text-left text-sm transition"
               :class="
                 option.id === poll.viewerOptionId
-                  ? 'border-brand-500 bg-ink-700 ring-2 ring-brand-500/40'
-                  : 'border-white/10 bg-ink-700 hover:bg-ink-600'
+                  ? 'border-brand-500 bg-surface-2 ring-2 ring-brand-500/40'
+                  : 'border-line/20 bg-surface-2 hover:bg-surface-3'
               "
               @click="vote(poll, option.id)"
             >
@@ -175,14 +175,14 @@ async function vote(poll: PollDTO, optionId: string): Promise<void> {
                 aria-hidden="true"
               />
               <span class="relative flex items-center justify-between gap-2">
-                <span class="text-slate-100">{{ option.text }}</span>
-                <span class="text-xs text-slate-400">{{ option.votes }}</span>
+                <span class="text-fg">{{ option.text }}</span>
+                <span class="text-xs text-fg-2">{{ option.votes }}</span>
               </span>
             </button>
           </li>
         </ul>
 
-        <p class="text-xs text-slate-500">
+        <p class="text-xs text-fg-3">
           {{ poll.totalVotes }} vote{{ poll.totalVotes === 1 ? '' : 's' }}
         </p>
       </li>

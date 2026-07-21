@@ -99,7 +99,7 @@ async function toggleDone(task: TaskDTO): Promise<void> {
       </button>
     </form>
 
-    <p v-if="loading" class="text-sm text-slate-400">Loading tasks…</p>
+    <p v-if="loading" class="text-sm text-fg-2">Loading tasks…</p>
 
     <EmptyState
       v-else-if="tasks.length === 0"
@@ -116,7 +116,7 @@ async function toggleDone(task: TaskDTO): Promise<void> {
       >
         <span
           class="flex-1 text-sm"
-          :class="task.status === 'DONE' ? 'text-slate-500 line-through' : 'text-slate-100'"
+          :class="task.status === 'DONE' ? 'text-fg-3 line-through' : 'text-fg'"
         >
           {{ task.title }}
         </span>

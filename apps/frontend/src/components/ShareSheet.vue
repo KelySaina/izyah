@@ -32,27 +32,27 @@ async function nativeShare(): Promise<void> {
 
 <template>
   <div class="grid grid-cols-4 gap-2">
-    <button type="button" class="flex flex-col items-center gap-1.5 rounded-xl bg-ink-800 py-3 text-[11px] font-medium text-slate-300 transition active:scale-95 hover:bg-ink-700" @click="copyLink">
-      <Link2 :size="18" class="text-brand-400" /> Copy
+    <button type="button" class="flex flex-col items-center gap-1.5 rounded-xl bg-surface py-3 text-[11px] font-medium text-fg-2 transition active:scale-95 hover:bg-surface-2" @click="copyLink">
+      <Link2 :size="18" class="text-accent" /> Copy
     </button>
     <button
       v-if="canNativeShare"
       type="button"
-      class="flex flex-col items-center gap-1.5 rounded-xl bg-ink-800 py-3 text-[11px] font-medium text-slate-300 transition active:scale-95 hover:bg-ink-700"
+      class="flex flex-col items-center gap-1.5 rounded-xl bg-surface py-3 text-[11px] font-medium text-fg-2 transition active:scale-95 hover:bg-surface-2"
       @click="nativeShare"
     >
-      <Share2 :size="18" class="text-brand-400" /> Share
+      <Share2 :size="18" class="text-accent" /> Share
     </button>
     <a
-      class="flex flex-col items-center gap-1.5 rounded-xl bg-ink-800 py-3 text-[11px] font-medium text-slate-300 transition active:scale-95 hover:bg-ink-700"
+      class="flex flex-col items-center gap-1.5 rounded-xl bg-surface py-3 text-[11px] font-medium text-fg-2 transition active:scale-95 hover:bg-surface-2"
       :href="googleCalendarUrl(event)"
       target="_blank"
       rel="noopener noreferrer"
     >
-      <CalendarPlus :size="18" class="text-brand-400" /> Calendar
+      <CalendarPlus :size="18" class="text-accent" /> Calendar
     </a>
-    <button type="button" class="flex flex-col items-center gap-1.5 rounded-xl bg-ink-800 py-3 text-[11px] font-medium text-slate-300 transition active:scale-95 hover:bg-ink-700" @click="downloadICS(event)">
-      <Download :size="18" class="text-brand-400" /> .ics
+    <button type="button" class="flex flex-col items-center gap-1.5 rounded-xl bg-surface py-3 text-[11px] font-medium text-fg-2 transition active:scale-95 hover:bg-surface-2" @click="downloadICS(event)">
+      <Download :size="18" class="text-accent" /> .ics
     </button>
   </div>
 </template>

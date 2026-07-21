@@ -23,10 +23,10 @@ onMounted(() => {
 
 <template>
   <!-- Splash while the anonymous identity bootstraps -->
-  <div v-if="!identity.ready" class="fixed inset-0 grid place-items-center bg-ink-900 text-center">
+  <div v-if="!identity.ready" class="fixed inset-0 grid place-items-center bg-app text-center">
     <div class="flex flex-col items-center">
       <img src="/icons/logo_app.png" alt="Izy'Ah" class="w-40 animate-pop-in drop-shadow-[0_8px_30px_rgba(247,195,49,0.25)]" />
-      <p class="mt-4 flex items-center gap-2 text-sm text-slate-500">
+      <p class="mt-4 flex items-center gap-2 text-sm text-fg-3">
         <span class="h-1.5 w-1.5 animate-ping rounded-full bg-brand-500" />
         Getting things ready…
       </p>
@@ -36,17 +36,17 @@ onMounted(() => {
   <div v-else class="mx-auto flex min-h-full max-w-md flex-col">
     <!-- Top bar -->
     <header
-      class="sticky top-0 z-20 flex items-center justify-between border-b border-white/5 bg-ink-900/80 px-4 py-3 backdrop-blur"
+      class="sticky top-0 z-20 flex items-center justify-between border-b border-line/10 bg-app/80 px-4 py-3 backdrop-blur"
     >
       <RouterLink to="/" class="flex items-center gap-2">
         <img src="/icons/icon.svg" alt="" class="h-8 w-8 rounded-lg" />
         <span class="font-display text-lg font-bold tracking-tight">
-          <span class="text-slate-50">IZY</span><span class="text-brand-400">'AH</span>
+          <span class="text-fg">IZY</span><span class="text-accent">'AH</span>
         </span>
       </RouterLink>
       <div class="flex items-center gap-1.5">
         <button
-          class="grid h-9 w-9 place-items-center rounded-full text-slate-300 transition hover:bg-ink-700"
+          class="grid h-9 w-9 place-items-center rounded-full text-fg-2 transition hover:bg-surface-2"
           :aria-label="ui.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
           @click="ui.toggleTheme()"
         >
@@ -65,10 +65,7 @@ onMounted(() => {
       class="flex items-center justify-between gap-3 bg-brand-500 px-4 py-2 text-sm font-medium text-ink-900"
     >
       <span class="flex items-center gap-2"><RefreshCw :size="15" /> A new version is available.</span>
-      <button
-        class="rounded-lg bg-ink-900/15 px-3 py-1 font-semibold"
-        @click="updateServiceWorker(true)"
-      >
+      <button class="rounded-lg bg-black/15 px-3 py-1 font-semibold" @click="updateServiceWorker(true)">
         Reload
       </button>
     </div>
@@ -82,33 +79,42 @@ onMounted(() => {
       </RouterView>
     </main>
 
-    <!-- Bottom navigation (mobile-first). Create sits in its own slot so it
-         never overlaps a destination label. -->
+    <!-- Bottom navigation: four balanced tabs on one baseline. -->
     <nav
-      class="fixed bottom-0 left-1/2 z-30 w-full max-w-md -translate-x-1/2 border-t border-white/5 bg-ink-900/90 backdrop-blur"
+      class="fixed bottom-0 left-1/2 z-30 w-full max-w-md -translate-x-1/2 border-t border-line/10 bg-app/90 backdrop-blur"
     >
-      <div class="grid grid-cols-4 items-end px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
+      <div class="grid grid-cols-4 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5">
         <RouterLink to="/" class="flex flex-col items-center gap-1 py-1" v-slot="{ isActive }">
-          <HomeIcon :size="22" :stroke-width="isActive ? 2.5 : 2" :class="isActive ? 'text-brand-400' : 'text-slate-400'" />
-          <span class="text-[10px] font-semibold" :class="isActive ? 'text-brand-400' : 'text-slate-500'">Home</span>
+          <span class="flex h-8 items-center justify-center">
+            <HomeIcon :size="22" :stroke-width="isActive ? 2.5 : 2" :class="isActive ? 'text-accent' : 'text-fg-2'" />
+          </span>
+          <span class="text-[10px] font-semibold" :class="isActive ? 'text-accent' : 'text-fg-3'">Home</span>
         </RouterLink>
 
         <RouterLink to="/dashboard" class="flex flex-col items-center gap-1 py-1" v-slot="{ isActive }">
-          <CalendarDays :size="22" :stroke-width="isActive ? 2.5 : 2" :class="isActive ? 'text-brand-400' : 'text-slate-400'" />
-          <span class="text-[10px] font-semibold" :class="isActive ? 'text-brand-400' : 'text-slate-500'">Events</span>
+          <span class="flex h-8 items-center justify-center">
+            <CalendarDays :size="22" :stroke-width="isActive ? 2.5 : 2" :class="isActive ? 'text-accent' : 'text-fg-2'" />
+          </span>
+          <span class="text-[10px] font-semibold" :class="isActive ? 'text-accent' : 'text-fg-3'">Events</span>
         </RouterLink>
 
-        <RouterLink to="/create" class="flex items-center justify-center" aria-label="Create event">
-          <span
-            class="-mt-8 grid h-14 w-14 place-items-center rounded-full bg-brand-500 text-ink-900 shadow-glow ring-4 ring-ink-900 transition active:scale-95"
-          >
-            <Plus :size="26" :stroke-width="2.75" />
+        <RouterLink to="/create" class="flex flex-col items-center gap-1 py-1" v-slot="{ isActive }">
+          <span class="flex h-8 items-center justify-center">
+            <span
+              class="grid h-9 w-9 place-items-center rounded-full bg-brand-500 text-ink-900 shadow-glow transition active:scale-90"
+              :class="{ 'ring-2 ring-brand-400/50': isActive }"
+            >
+              <Plus :size="20" :stroke-width="2.75" />
+            </span>
           </span>
+          <span class="text-[10px] font-semibold" :class="isActive ? 'text-accent' : 'text-fg-3'">Create</span>
         </RouterLink>
 
         <RouterLink to="/profile" class="flex flex-col items-center gap-1 py-1" v-slot="{ isActive }">
-          <UserIcon :size="22" :stroke-width="isActive ? 2.5 : 2" :class="isActive ? 'text-brand-400' : 'text-slate-400'" />
-          <span class="text-[10px] font-semibold" :class="isActive ? 'text-brand-400' : 'text-slate-500'">You</span>
+          <span class="flex h-8 items-center justify-center">
+            <UserIcon :size="22" :stroke-width="isActive ? 2.5 : 2" :class="isActive ? 'text-accent' : 'text-fg-2'" />
+          </span>
+          <span class="text-[10px] font-semibold" :class="isActive ? 'text-accent' : 'text-fg-3'">You</span>
         </RouterLink>
       </div>
     </nav>
@@ -120,7 +126,7 @@ onMounted(() => {
         :key="t.id"
         class="pointer-events-auto w-full max-w-sm animate-pop-in rounded-xl px-4 py-2.5 text-sm font-medium shadow-lg"
         :class="{
-          'bg-ink-700 text-slate-100': t.type === 'info',
+          'bg-surface-2 text-fg': t.type === 'info',
           'bg-emerald-600 text-white': t.type === 'success',
           'bg-red-600 text-white': t.type === 'error',
         }"

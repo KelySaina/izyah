@@ -83,7 +83,7 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
 
 <template>
   <div v-if="loading" class="grid place-items-center py-16">
-    <div class="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-brand-500" />
+    <div class="h-8 w-8 animate-spin rounded-full border-2 border-line/20 border-t-brand-500" />
   </div>
 
   <EmptyState
@@ -112,13 +112,13 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
           <h1 class="font-display text-2xl font-bold leading-tight tracking-tight">
             {{ event.title }}
           </h1>
-          <p class="mt-1 text-sm text-slate-400">{{ formatDate(event.date) }}</p>
-          <p v-if="event.startTime" class="mt-0.5 flex items-center gap-1.5 text-sm text-slate-400">
-            <Clock :size="14" class="text-slate-500" />
+          <p class="mt-1 text-sm text-fg-2">{{ formatDate(event.date) }}</p>
+          <p v-if="event.startTime" class="mt-0.5 flex items-center gap-1.5 text-sm text-fg-2">
+            <Clock :size="14" class="text-fg-3" />
             {{ formatTimeRange(event.startTime, event.endTime) }}
           </p>
-          <p v-if="event.location" class="mt-0.5 flex items-center gap-1.5 text-sm text-slate-400">
-            <MapPin :size="14" class="text-slate-500" /> {{ event.location }}
+          <p v-if="event.location" class="mt-0.5 flex items-center gap-1.5 text-sm text-fg-2">
+            <MapPin :size="14" class="text-fg-3" /> {{ event.location }}
           </p>
         </div>
         <RouterLink
@@ -130,12 +130,12 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
         </RouterLink>
       </div>
 
-      <div v-if="event.creator" class="flex items-center gap-2 text-sm text-slate-400">
+      <div v-if="event.creator" class="flex items-center gap-2 text-sm text-fg-2">
         <Avatar :user="event.creator" :size="24" />
-        <span>Hosted by <span class="font-medium text-slate-300">{{ event.creator.displayName }}</span></span>
+        <span>Hosted by <span class="font-medium text-fg-2">{{ event.creator.displayName }}</span></span>
       </div>
 
-      <p v-if="event.description" class="whitespace-pre-wrap text-sm leading-relaxed text-slate-300">
+      <p v-if="event.description" class="whitespace-pre-wrap text-sm leading-relaxed text-fg-2">
         {{ event.description }}
       </p>
     </header>
@@ -145,7 +145,7 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
 
     <!-- Attendees -->
     <section class="card space-y-3 p-4">
-      <h2 class="text-sm font-bold text-slate-200">Who's coming</h2>
+      <h2 class="text-sm font-bold text-fg">Who's coming</h2>
       <AttendeeList
         :attendees="events.attendees"
         :counts="events.counts"
@@ -164,7 +164,7 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
           :key="t.key"
           type="button"
           class="flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-semibold transition"
-          :class="tab === t.key ? 'bg-brand-500 text-ink-900' : 'bg-ink-800 text-slate-300'"
+          :class="tab === t.key ? 'bg-brand-500 text-ink-900' : 'bg-surface text-fg-2'"
           @click="tab = t.key"
         >
           <component :is="t.icon" :size="15" :stroke-width="2.25" /> {{ t.label }}

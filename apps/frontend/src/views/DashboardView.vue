@@ -43,14 +43,14 @@ onMounted(() => load(active.value));
     <h1 class="text-2xl font-black tracking-tight">Your events</h1>
 
     <!-- Scope tabs -->
-    <div class="flex gap-1 rounded-xl bg-ink-800 p-1">
+    <div class="flex gap-1 rounded-xl bg-surface p-1">
       <button
         v-for="tab in tabs"
         :key="tab.scope"
         type="button"
         class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition"
         :class="
-          active === tab.scope ? 'bg-brand-500 text-ink-900' : 'text-slate-400 hover:text-slate-200'
+          active === tab.scope ? 'bg-brand-500 text-ink-900' : 'text-fg-2 hover:text-fg'
         "
         :aria-pressed="active === tab.scope"
         @click="select(tab.scope)"
@@ -60,8 +60,8 @@ onMounted(() => load(active.value));
     </div>
 
     <!-- List -->
-    <div v-if="events.loading" class="grid place-items-center py-12 text-slate-500">
-      <div class="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-brand-500" />
+    <div v-if="events.loading" class="grid place-items-center py-12 text-fg-3">
+      <div class="h-8 w-8 animate-spin rounded-full border-2 border-line/20 border-t-brand-500" />
     </div>
 
     <div v-else-if="events.events.length" class="space-y-3">

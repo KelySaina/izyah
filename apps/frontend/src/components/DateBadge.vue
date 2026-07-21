@@ -9,9 +9,9 @@ const parts = computed(() => formatDayMonth(props.date));
 
 <template>
   <div
-    class="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl border border-white/5 bg-ink-700"
+    class="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl border border-line/10 bg-surface-2"
   >
-    <span class="text-[10px] font-bold uppercase tracking-wide text-brand-400">{{ parts.month }}</span>
-    <span class="text-xl font-bold leading-none text-slate-100">{{ parts.day }}</span>
+    <span class="text-[10px] font-bold uppercase tracking-wide text-accent">{{ parts.month }}</span>
+    <span class="text-xl font-bold leading-none text-fg">{{ parts.day }}</span>
   </div>
 </template>

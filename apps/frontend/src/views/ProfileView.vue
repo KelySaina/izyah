@@ -95,8 +95,8 @@ async function pickColor(color: string): Promise<void> {
           v-for="color in PRESET_COLORS"
           :key="color"
           type="button"
-          class="grid h-10 w-10 place-items-center rounded-full ring-2 ring-offset-2 ring-offset-ink-800 transition active:scale-95"
-          :class="identity.avatar === color ? 'ring-white' : 'ring-transparent'"
+          class="grid h-10 w-10 place-items-center rounded-full ring-2 ring-offset-2 ring-offset-surface transition active:scale-95"
+          :class="identity.avatar === color ? 'ring-fg' : 'ring-transparent'"
           :style="{ backgroundColor: color }"
           :aria-label="'Use color ' + color"
           :aria-pressed="identity.avatar === color"
@@ -125,6 +125,6 @@ async function pickColor(color: string): Promise<void> {
     </section>
 
     <!-- Debug / identity id -->
-    <p class="text-center text-xs text-slate-600">ID: {{ identity.id ?? '—' }}</p>
+    <p class="text-center text-xs text-fg-3">ID: {{ identity.id ?? '—' }}</p>
   </div>
 </template>
