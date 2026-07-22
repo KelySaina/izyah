@@ -38,8 +38,11 @@ onMounted(() => {
     <header
       class="sticky top-0 z-20 flex items-center justify-between border-b border-line/10 bg-app/80 px-4 py-3 backdrop-blur"
     >
-      <RouterLink to="/" class="flex items-center">
+      <RouterLink to="/" class="flex items-center gap-2">
         <img src="/icons/logo_app.png" alt="Izy'Ah" class="h-9 w-auto" />
+        <span class="font-display text-lg font-bold tracking-tight">
+          <span class="text-fg">IZY</span><span class="text-accent">'AH</span>
+        </span>
       </RouterLink>
       <div class="flex items-center gap-1.5">
         <button
