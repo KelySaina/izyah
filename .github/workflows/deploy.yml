@@ -140,6 +140,10 @@ jobs:
           script: |
             set -e
             cd ~/izyah
+            # Bootstrap: sync the repo to this commit FIRST, so the correct
+            # compose files + deploy script exist before we run them.
+            git fetch --all --prune
+            git checkout --force '${{ github.sha }}'
             export IMAGE_TAG='${{ github.sha }}'
             export GHCR_USER='${{ github.repository_owner }}'
             export GHCR_TOKEN='${{ secrets.GHCR_PAT }}'
