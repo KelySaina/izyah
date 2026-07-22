@@ -300,6 +300,9 @@ EOF
 # ============================================================================
 services:
   traefik:
+    # v3.6.1+ negotiates the Docker API version; earlier tags pin 1.24 and
+    # break against Docker Engine 28+ ("client version 1.24 is too old").
+    image: traefik:v3.6.1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./infra/traefik/traefik.prod.yml:/etc/traefik/traefik.yml:ro

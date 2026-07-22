@@ -3,6 +3,9 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# Prisma's engine needs OpenSSL present to load on Alpine (musl).
+RUN apk add --no-cache openssl libc6-compat
+
 # Install deps (incl. dev) with the lockfile if present.
 COPY package.json package-lock.json* ./
 RUN npm install
@@ -18,6 +21,9 @@ RUN npm run build
 FROM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Prisma's engine needs OpenSSL present to load on Alpine (musl).
+RUN apk add --no-cache openssl libc6-compat
 
 # Only production deps in the final image.
 COPY package.json package-lock.json* ./
