@@ -8,7 +8,7 @@ withDefaults(
     title: string;
     subtitle?: string;
   }>(),
-  { icon: undefined },
+  { icon: undefined, subtitle: undefined },
 );
 </script>
 

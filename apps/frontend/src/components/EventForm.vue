@@ -10,7 +10,7 @@ const props = withDefaults(
     submitLabel?: string;
     loading?: boolean;
   }>(),
-  { submitLabel: 'Save', loading: false },
+  { initial: undefined, submitLabel: 'Save', loading: false },
 );
 
 const emit = defineEmits<{ (e: 'submit', value: CreateEventInput): void }>();

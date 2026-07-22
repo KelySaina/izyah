@@ -10,7 +10,7 @@ const props = withDefaults(
     avatar?: string;
     size?: number;
   }>(),
-  { size: 40 },
+  { user: undefined, name: undefined, avatar: undefined, size: 40 },
 );
 
 const displayName = computed(() => props.user?.displayName ?? props.name ?? '');

@@ -96,21 +96,21 @@ onMounted(() => {
       class="fixed bottom-0 left-1/2 z-30 w-full max-w-md -translate-x-1/2 border-t border-line/10 bg-app/90 backdrop-blur"
     >
       <div class="grid grid-cols-3 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5">
-        <RouterLink to="/" class="flex flex-col items-center gap-1 py-1" v-slot="{ isActive }">
+        <RouterLink v-slot="{ isActive }" to="/" class="flex flex-col items-center gap-1 py-1">
           <span class="flex h-8 items-center justify-center">
             <HomeIcon :size="22" :stroke-width="isActive ? 2.5 : 2" :class="isActive ? 'text-accent' : 'text-fg-2'" />
           </span>
           <span class="text-[10px] font-semibold" :class="isActive ? 'text-accent' : 'text-fg-3'">Home</span>
         </RouterLink>
 
-        <RouterLink to="/dashboard" class="flex flex-col items-center gap-1 py-1" v-slot="{ isActive }">
+        <RouterLink v-slot="{ isActive }" to="/dashboard" class="flex flex-col items-center gap-1 py-1">
           <span class="flex h-8 items-center justify-center">
             <CalendarDays :size="22" :stroke-width="isActive ? 2.5 : 2" :class="isActive ? 'text-accent' : 'text-fg-2'" />
           </span>
           <span class="text-[10px] font-semibold" :class="isActive ? 'text-accent' : 'text-fg-3'">Events</span>
         </RouterLink>
 
-        <RouterLink to="/profile" class="flex flex-col items-center gap-1 py-1" v-slot="{ isActive }">
+        <RouterLink v-slot="{ isActive }" to="/profile" class="flex flex-col items-center gap-1 py-1">
           <span class="flex h-8 items-center justify-center">
             <UserIcon :size="22" :stroke-width="isActive ? 2.5 : 2" :class="isActive ? 'text-accent' : 'text-fg-2'" />
           </span>

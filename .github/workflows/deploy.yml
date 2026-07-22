@@ -24,6 +24,25 @@ jobs:
     defaults:
       run:
         working-directory: apps/backend
+    # The API touches Redis (rate limiting) and Postgres, so tests need both.
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: izyah
+          POSTGRES_PASSWORD: izyah
+          POSTGRES_DB: izyah_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U izyah" --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      REDIS_URL: redis://localhost:6379
+      DATABASE_URL: postgresql://izyah:izyah@localhost:5432/izyah_test?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
