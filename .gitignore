@@ -43,3 +43,6 @@ pnpm-debug.log*
 # Docker local overrides
 docker-compose.local.yml
 letsencrypt/
+
+izyah_deploy
+izyah_deploy.pub

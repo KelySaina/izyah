@@ -1,0 +1,19 @@
+# ============================================================================
+# Izy'Ah — deploy overlay. Replaces the locally-built backend/frontend with
+# the images CI pushed to GHCR, selected by ${IMAGE_TAG} (a git SHA).
+#
+#   IMAGE_TAG=<sha> docker compose \
+#     -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.deploy.yml \
+#     pull backend frontend && ... up -d --no-build backend frontend
+#
+# Used by scripts/deploy.sh. Base files are untouched, so `make up` still builds
+# from source for local work.
+# ============================================================================
+services:
+  backend:
+    image: ghcr.io/kelysaina/izyah-backend:${IMAGE_TAG:-latest}
+    pull_policy: always
+
+  frontend:
+    image: ghcr.io/kelysaina/izyah-frontend:${IMAGE_TAG:-latest}
+    pull_policy: always

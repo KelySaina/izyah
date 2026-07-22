@@ -1,0 +1,127 @@
+name: CI/CD
+
+# Test on every push + PR. Build images and deploy only on green pushes to main.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same ref cancels an in-flight run (no overlapping deploys).
+concurrency:
+  group: cicd-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_BACKEND: ghcr.io/kelysaina/izyah-backend
+  IMAGE_FRONTEND: ghcr.io/kelysaina/izyah-frontend
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Tests — the gate. Nothing builds or deploys unless these pass.
+  # ---------------------------------------------------------------------------
+  test-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate     # generates @prisma/client so tsc/jest can resolve it
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      # `build` runs vue-tsc (typecheck) + vite build; the baked URL is irrelevant here.
+      - run: npm run build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'http://localhost:4000' }}
+          VITE_SOCKET_URL: ${{ vars.VITE_SOCKET_URL || 'http://localhost:4000' }}
+
+  # ---------------------------------------------------------------------------
+  # 2. Build once, push immutable :<sha> (+ :latest) to GHCR. Layer-cached.
+  # ---------------------------------------------------------------------------
+  build-and-push:
+    needs: [test-backend, test-frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write            # lets GITHUB_TOKEN push to GHCR — no PAT needed for pushing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/backend
+          push: true
+          tags: |
+            ${{ env.IMAGE_BACKEND }}:${{ github.sha }}
+            ${{ env.IMAGE_BACKEND }}:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build & push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/frontend
+          push: true
+          build-args: |
+            VITE_API_URL=${{ vars.VITE_API_URL }}
+            VITE_SOCKET_URL=${{ vars.VITE_SOCKET_URL }}
+          tags: |
+            ${{ env.IMAGE_FRONTEND }}:${{ github.sha }}
+            ${{ env.IMAGE_FRONTEND }}:latest
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+  # ---------------------------------------------------------------------------
+  # 3. Deploy — SSH to the VPS, pull the new images, recreate, health-gate,
+  #    auto-rollback. All logic lives in scripts/deploy.sh (versioned in-repo).
+  # ---------------------------------------------------------------------------
+  deploy:
+    needs: build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          command_timeout: 15m
+          script: |
+            set -e
+            cd ~/izyah
+            export IMAGE_TAG='${{ github.sha }}'
+            export GHCR_USER='${{ github.repository_owner }}'
+            export GHCR_TOKEN='${{ secrets.GHCR_PAT }}'
+            bash scripts/deploy.sh
