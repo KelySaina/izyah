@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { Camera, Image as ImageIcon } from 'lucide-vue-next';
+import { Camera, Image as ImageIcon, Play } from 'lucide-vue-next';
 import { api, ApiError } from '@/services/api';
 import { pickPhoto } from '@/services/cameraService';
 import { useUiStore } from '@/stores/ui';
 import EmptyState from '@/components/EmptyState.vue';
+import Lightbox from '@/components/Lightbox.vue';
 import type { MediaDTO } from '@/types';
 
 const props = defineProps<{ eventId: string }>();
@@ -14,6 +15,8 @@ const ui = useUiStore();
 const media = ref<MediaDTO[]>([]);
 const loading = ref(true);
 const uploading = ref(false);
+/** Index of the media item open in the lightbox (null = closed). */
+const lightboxIndex = ref<number | null>(null);
 
 function errMsg(err: unknown): string {
   return err instanceof ApiError ? err.message : 'Something went wrong';
@@ -78,10 +81,12 @@ async function add(): Promise<void> {
         Uploading…
       </div>
 
-      <div
-        v-for="item in media"
+      <button
+        v-for="(item, i) in media"
         :key="item.id"
-        class="relative aspect-square overflow-hidden rounded-lg bg-surface-2"
+        type="button"
+        class="group relative aspect-square overflow-hidden rounded-lg bg-surface-2 transition active:scale-[0.98]"
+        @click="lightboxIndex = i"
       >
         <img
           v-if="item.type === 'IMAGE'"
@@ -90,7 +95,15 @@ async function add(): Promise<void> {
           alt="Event photo"
           class="h-full w-full object-cover"
         />
-        <video v-else :src="item.url" controls class="h-full w-full object-cover" />
+        <template v-else>
+          <video :src="item.url" preload="metadata" muted playsinline class="h-full w-full object-cover" />
+          <!-- Play affordance — the video opens in the lightbox to actually play. -->
+          <span class="absolute inset-0 grid place-items-center bg-black/25">
+            <span class="grid h-9 w-9 place-items-center rounded-full bg-black/50 text-white">
+              <Play :size="18" :fill="'currentColor'" />
+            </span>
+          </span>
+        </template>
 
         <span
           v-if="item.status !== 'READY'"
@@ -98,7 +111,9 @@ async function add(): Promise<void> {
         >
           {{ item.status }}
         </span>
-      </div>
+      </button>
     </div>
+
+    <Lightbox v-model="lightboxIndex" :items="media" />
   </section>
 </template>
