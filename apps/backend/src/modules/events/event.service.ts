@@ -100,23 +100,27 @@ export async function createEvent(creatorId: string, input: CreateEventInput): P
 }
 
 export async function listEvents(userId: string, query: ListEventsQuery): Promise<EventDTO[]> {
+  // Events are day-granular: a date-only input is stored at 00:00 UTC. Bucket by
+  // the START of today (UTC) so an event dated *today* counts as upcoming for the
+  // whole day — comparing against `new Date()` would wrongly file it under past.
   const now = new Date();
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   let where: Prisma.EventWhereInput;
 
   if (query.scope === 'mine') {
     where = { OR: [{ creatorId: userId }, { participants: { some: { userId } } }] };
   } else if (query.scope === 'past') {
-    where = { date: { lt: now }, participants: { some: { userId } } };
+    where = { date: { lt: todayStart }, participants: { some: { userId } } };
   } else if (query.scope === 'public') {
     // Discovery feed: upcoming PUBLIC events I'm not already involved in.
     where = {
-      date: { gte: now },
+      date: { gte: todayStart },
       visibility: 'PUBLIC',
       NOT: { participants: { some: { userId } } },
     };
   } else {
     // upcoming: events I'm involved in that haven't happened yet.
-    where = { date: { gte: now }, participants: { some: { userId } } };
+    where = { date: { gte: todayStart }, participants: { some: { userId } } };
   }
 
   const events = await prisma.event.findMany({
