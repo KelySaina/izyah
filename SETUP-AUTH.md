@@ -24,10 +24,17 @@ can't be replayed.
   email into public creator/attendee lists).
 - Prisma `User.authSubject` column ready for OIDC linking.
 
-**Pending (M2 — after Logto is provisioned):**
-- Backend: verify Logto JWTs via JWKS (`jose`), `POST /api/auth/link`,
-  `POST /api/auth/logout`, and the link/merge/login logic in `identity` middleware.
-- Frontend: Logto SPA SDK, "Sign in" button, `/callback` route, Profile claim UI.
+**Done (M2 — code shipped, needs Logto provisioning to activate):**
+- Backend: `jose` ID-token verification (JWKS via OIDC discovery), `POST /api/auth/link`
+  (verify → link-by-subject / login-by-verified-email / upgrade-anonymous / create),
+  `POST /api/auth/logout`.
+- Frontend: `@logto/browser` SPA SDK, "Save your account" button in Profile, `/callback`
+  route, sign-out. All gated on `VITE_OIDC_*` being present (else UI stays hidden).
+- Inert until `OIDC_ISSUER` (backend) + `VITE_OIDC_*` (frontend) are set — see §3.
+
+**Not yet done:** prod TLS labels for the logto routers in the generated overlay;
+merging an anonymous user's events into a pre-existing account on first sign-in
+(currently the anonymous row is abandoned in that case).
 
 ---
 
@@ -63,28 +70,44 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile auth u
 Open the admin console, finish the first-run admin setup, then:
 
 1. **Applications → Create → Single Page App**
-   - Redirect URI: `http://izyah.localhost/callback` (prod) / `http://localhost:5173/callback` (dev)
-   - Post-sign-out URI: your `APP_URL`
-   - Copy the **App ID** → `OIDC_CLIENT_ID`.
+   - Redirect URI: `<APP_URL>/callback` — dev `http://localhost:5173/callback`,
+     prod e.g. `https://144.91.123.212.nip.io/callback`. Must match exactly.
+   - Post-sign-out URI: your `APP_URL`.
+   - Copy the **App ID** → `OIDC_CLIENT_ID` / `VITE_OIDC_CLIENT_ID`.
 2. **API resources → Create**
-   - Identifier (audience), e.g. `https://api.izyah.localhost` → `OIDC_AUDIENCE`.
+   - Identifier (audience) → `OIDC_AUDIENCE` (optional; the ID-token flow doesn't require it).
 3. (Optional) **Connectors** → add Google / email so social + magic-link work.
 
-## 3. Fill `.env`
+## 3. Fill env
 
+**Backend** — `.env` (dev: `apps/backend/.env`; prod: root `.env`, written by `setup.sh`):
 ```dotenv
 SESSION_SECRET=<openssl rand -hex 32>          # REQUIRED, non-default in prod
-APP_URL=http://izyah.localhost
-OIDC_ISSUER=http://auth.izyah.localhost/oidc   # dev: http://localhost:3001/oidc
-OIDC_AUDIENCE=https://api.izyah.localhost
+APP_URL=https://144.91.123.212.nip.io          # dev: http://localhost:5173
+OIDC_ISSUER=http://localhost:3001/oidc         # prod: https://<AUTH_DOMAIN>/oidc
 OIDC_CLIENT_ID=<App ID from step 2.1>
+OIDC_AUDIENCE=                                 # optional
 ```
-Leaving `OIDC_ISSUER` empty keeps account-linking disabled (anonymous-only).
 
-## 4. Apply the schema change
+**Frontend** — build-time vars (dev: `apps/frontend/.env`; prod: compose build args,
+already wired from `OIDC_ISSUER` / `OIDC_CLIENT_ID`):
+```dotenv
+VITE_OIDC_ISSUER=http://localhost:3001/oidc
+VITE_OIDC_CLIENT_ID=<App ID from step 2.1>
+```
+Leaving `OIDC_ISSUER` / `VITE_OIDC_*` empty keeps linking disabled (anonymous-only);
+the "Save your account" button simply doesn't render.
+
+## 4. Apply the schema change (once)
 
 ```bash
 cd apps/backend && npm run db:push && npm run db:generate
 ```
 
-Once these are in place, ping me to wire **M2** (the OIDC verify + claim flow).
+## 5. Test the flow (dev)
+
+Run infra + Logto + apps, open the app, go to **Profile → Save your account** → you're
+redirected to Logto → sign up/in → back to `/callback` → linked. Verify:
+- `GET /api/auth/me` now returns `isClaimed: true` + your `email`;
+- clearing the browser then **Save your account** with the same email lands you back on
+  the *same* user (recovery); a second browser does the same (cross-device).

@@ -10,6 +10,9 @@ declare module '*.vue' {
 interface ImportMetaEnv {
   readonly VITE_API_URL: string;
   readonly VITE_SOCKET_URL: string;
+  // OIDC (Logto) — absent means account-linking is disabled (anonymous-only).
+  readonly VITE_OIDC_ISSUER?: string;
+  readonly VITE_OIDC_CLIENT_ID?: string;
 }
 
 interface ImportMeta {

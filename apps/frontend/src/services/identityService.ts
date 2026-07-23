@@ -45,11 +45,33 @@ export async function initIdentity(): Promise<MeDTO> {
 }
 
 async function bootstrap(): Promise<MeDTO> {
-  const { user, token } = await api.auth.anonymous();
-  setToken(token);
-  setUserId(user.id);
-  await setJSON(STORAGE_KEY, { token });
-  return user;
+  return applySession(await api.auth.anonymous());
+}
+
+/** Persist a session (token + user) and make it the active identity. */
+export async function applySession(session: { user: MeDTO; token: string }): Promise<MeDTO> {
+  setToken(session.token);
+  setUserId(session.user.id);
+  await setJSON(STORAGE_KEY, { token: session.token });
+  return session.user;
+}
+
+/** Exchange an OIDC ID token for a session and adopt it (claim / recover). */
+export async function linkIdToken(idToken: string): Promise<MeDTO> {
+  return applySession(await api.auth.link(idToken));
+}
+
+/** Drop the current session and return to a fresh anonymous identity. */
+export async function resetIdentity(): Promise<MeDTO> {
+  try {
+    await api.auth.logout();
+  } catch {
+    /* stateless — best effort */
+  }
+  await storage.remove(STORAGE_KEY);
+  setToken(null);
+  setUserId(null);
+  return bootstrap();
 }
 
 export async function updateProfile(input: {

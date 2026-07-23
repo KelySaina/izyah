@@ -15,6 +15,7 @@ export type AnalyticsEvent =
   | 'rsvp_not_going'
   | 'attendance_marked'
   | 'user_created'
+  | 'account_claimed'
   | 'message_sent'
   | 'media_uploaded';
 

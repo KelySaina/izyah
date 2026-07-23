@@ -18,6 +18,7 @@ const routes: RouteRecordRaw[] = [
     props: true,
   },
   { path: '/profile', name: 'profile', component: () => import('@/views/ProfileView.vue') },
+  { path: '/callback', name: 'callback', component: () => import('@/views/CallbackView.vue') },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') },
 ];
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { Check, Download, Moon, Sun, ImagePlus, Camera } from 'lucide-vue-next';
+import { Check, Download, Moon, Sun, ImagePlus, Camera, ShieldCheck, LogIn, LogOut } from 'lucide-vue-next';
 import { useImageUpload } from '@/composables/useImageUpload';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
@@ -69,6 +69,29 @@ async function pickColor(color: string): Promise<void> {
     ui.toast(err instanceof ApiError ? err.message : 'Something went wrong', 'error');
   }
 }
+
+const linking = ref(false);
+
+async function claim(): Promise<void> {
+  if (linking.value) return;
+  linking.value = true;
+  try {
+    await identity.claim(); // redirects to the identity provider
+  } catch (err) {
+    linking.value = false;
+    ui.toast(err instanceof ApiError ? err.message : 'Could not start sign-in', 'error');
+  }
+}
+
+async function signOut(): Promise<void> {
+  if (!window.confirm('Sign out on this device? You can sign back in anytime.')) return;
+  try {
+    await identity.signOut();
+    ui.toast('Signed out', 'success');
+  } catch (err) {
+    ui.toast(err instanceof ApiError ? err.message : 'Something went wrong', 'error');
+  }
+}
 </script>
 
 <template>
@@ -107,6 +130,37 @@ async function pickColor(color: string): Promise<void> {
           Save
         </button>
       </div>
+    </section>
+
+    <!-- Account (OIDC linking) — only when the provider is configured -->
+    <section v-if="identity.canLink" class="card space-y-3 p-4">
+      <p class="label">Account</p>
+
+      <template v-if="identity.isClaimed">
+        <div class="flex items-center gap-2 text-sm text-fg">
+          <ShieldCheck :size="18" class="shrink-0 text-accent" />
+          <span class="min-w-0">
+            <span class="font-medium">Saved</span>
+            <span v-if="identity.email" class="block truncate text-fg-3">{{ identity.email }}</span>
+          </span>
+        </div>
+        <p class="text-xs text-fg-3">
+          Your events are linked to this account and follow you across devices.
+        </p>
+        <button type="button" class="btn-ghost w-full text-sm" @click="signOut">
+          <LogOut :size="16" /> Sign out on this device
+        </button>
+      </template>
+
+      <template v-else>
+        <p class="text-xs text-fg-3">
+          Right now you're a guest on this device — clearing your browser loses your events.
+          Sign in to save them and pick up on any device.
+        </p>
+        <button type="button" class="btn-primary w-full" :disabled="linking" @click="claim">
+          <LogIn :size="16" /> {{ linking ? 'Redirecting…' : 'Save your account' }}
+        </button>
+      </template>
     </section>
 
     <!-- Avatar color palette -->

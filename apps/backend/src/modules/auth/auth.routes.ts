@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../utils/http';
+import { validate } from '../../middleware/validate';
 import { requireIdentity } from '../../middleware/identity';
-import { anonymous, me } from './auth.controller';
+import { linkSchema } from './auth.schemas';
+import { anonymous, me, link, logout } from './auth.controller';
 
 export const authRouter = Router();
 
@@ -10,6 +12,7 @@ authRouter.post('/auth/anonymous', asyncHandler(anonymous));
 
 authRouter.get('/auth/me', requireIdentity, asyncHandler(me));
 
-// NOTE (M2 — OIDC account-linking, added once Logto is provisioned):
-//   POST /auth/link    — attach a verified OIDC identity to the current user
-//   POST /auth/logout  — drop back to anonymous
+// Account-linking (M2 — Logto/OIDC). `link` is identity-OPTIONAL: an anonymous
+// session (if present) is upgraded in place; otherwise it's a fresh sign-in.
+authRouter.post('/auth/link', validate({ body: linkSchema }), asyncHandler(link));
+authRouter.post('/auth/logout', asyncHandler(logout));

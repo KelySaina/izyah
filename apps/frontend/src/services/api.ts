@@ -84,6 +84,10 @@ export const api = {
       }),
     /** The caller's own identity (private projection). */
     me: () => request<MeDTO>('/auth/me'),
+    /** Exchange a verified OIDC ID token for a session (claim / recover). */
+    link: (idToken: string) =>
+      request<{ user: MeDTO; token: string }>('/auth/link', { method: 'POST', body: { idToken } }),
+    logout: () => request<void>('/auth/logout', { method: 'POST' }),
   },
   users: {
     me: () => request<MeDTO>('/users/me'),
