@@ -2,6 +2,7 @@
 import { reactive } from 'vue';
 import { Globe, Lock } from 'lucide-vue-next';
 import ImagePicker from '@/components/ImagePicker.vue';
+import LocationPicker from '@/components/LocationPicker.vue';
 import { useUiStore } from '@/stores/ui';
 import type { CreateEventInput, EventVisibility } from '@/types';
 
@@ -41,9 +42,21 @@ const form = reactive({
   startTime: props.initial?.startTime ?? '',
   endTime: props.initial?.endTime ?? '',
   location: props.initial?.location ?? '',
+  latitude: props.initial?.latitude ?? null,
+  longitude: props.initial?.longitude ?? null,
   coverImage: props.initial?.coverImage ?? '',
   visibility: initialVisibility as EventVisibility,
 });
+
+function onLocationUpdate(v: {
+  location: string;
+  latitude: number | null;
+  longitude: number | null;
+}): void {
+  form.location = v.location;
+  form.latitude = v.latitude;
+  form.longitude = v.longitude;
+}
 
 function clean(value: string): string | undefined {
   const v = value.trim();
@@ -62,6 +75,8 @@ function onSubmit(): void {
     startTime: clean(form.startTime),
     endTime: clean(form.endTime),
     location: clean(form.location),
+    latitude: form.latitude ?? undefined,
+    longitude: form.longitude ?? undefined,
     coverImage: clean(form.coverImage),
     visibility: form.visibility,
   });
@@ -104,10 +119,12 @@ function onSubmit(): void {
       </div>
     </div>
 
-    <div>
-      <label class="label" for="ev-loc">Location</label>
-      <input id="ev-loc" v-model="form.location" class="input" placeholder="Where?" />
-    </div>
+    <LocationPicker
+      :location="form.location"
+      :latitude="form.latitude"
+      :longitude="form.longitude"
+      @update="onLocationUpdate"
+    />
 
     <div>
       <span class="label">Visibility</span>

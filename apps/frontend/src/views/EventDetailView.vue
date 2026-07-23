@@ -23,6 +23,7 @@ import PollList from '@/components/PollList.vue';
 import MediaGallery from '@/components/MediaGallery.vue';
 import EventDetailSkeleton from '@/components/EventDetailSkeleton.vue';
 import Lightbox from '@/components/Lightbox.vue';
+import EventMap from '@/components/EventMap.vue';
 import { useEventsStore } from '@/stores/events';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
@@ -143,6 +144,15 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
         {{ event.description }}
       </p>
     </header>
+
+    <!-- Location map (only when the event has a pinned position) -->
+    <EventMap
+      v-if="event.latitude != null && event.longitude != null"
+      :key="`map-${event.id}`"
+      :lat="event.latitude"
+      :lng="event.longitude"
+      :label="event.location ?? undefined"
+    />
 
     <!-- RSVP -->
     <RsvpButtons :status="event.viewerStatus" :counts="event.counts" @change="onRsvp" />

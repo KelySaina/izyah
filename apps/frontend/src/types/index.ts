@@ -38,6 +38,8 @@ export interface EventDTO {
   startTime: string | null;
   endTime: string | null;
   location: string | null;
+  latitude: number | null;
+  longitude: number | null;
   coverImage: string | null;
   slug: string;
   visibility: EventVisibility;
@@ -117,6 +119,8 @@ export interface CreateEventInput {
   startTime?: string;
   endTime?: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   coverImage?: string;
   visibility?: EventVisibility;
 }

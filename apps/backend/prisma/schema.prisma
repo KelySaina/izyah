@@ -59,6 +59,10 @@ model Event {
   startTime   String?
   endTime     String?
   location    String?
+  // Optional precise pin for the location (WGS84). Set from the device or a
+  // geocoded address; rendered as a map on the event page.
+  latitude    Float?
+  longitude   Float?
   coverImage  String?
   // Public share slug -> izyah.app/event/{slug}
   slug        String   @unique @default(cuid())

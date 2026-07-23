@@ -10,6 +10,8 @@ const event: EventDTO = {
   startTime: '18:00',
   endTime: '20:00',
   location: 'Skyline Terrace',
+  latitude: null,
+  longitude: null,
   coverImage: null,
   slug: 'rooftop-party',
   visibility: 'PUBLIC',

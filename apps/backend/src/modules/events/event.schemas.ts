@@ -7,6 +7,8 @@ const time = z
   .optional();
 
 const url = z.string().url().max(1024).optional();
+const latitude = z.number().min(-90).max(90).optional();
+const longitude = z.number().min(-180).max(180).optional();
 
 export const createEventSchema = z.object({
   title: sanitizedText(120),
@@ -15,6 +17,8 @@ export const createEventSchema = z.object({
   startTime: time,
   endTime: time,
   location: optionalText(200),
+  latitude,
+  longitude,
   coverImage: url,
   visibility: z.enum(['PUBLIC', 'UNLISTED', 'PRIVATE']).optional(),
 });
@@ -27,6 +31,8 @@ export const updateEventSchema = z
     startTime: time,
     endTime: time,
     location: optionalText(200),
+    latitude,
+    longitude,
     coverImage: url,
     visibility: z.enum(['PUBLIC', 'UNLISTED', 'PRIVATE']).optional(),
   })

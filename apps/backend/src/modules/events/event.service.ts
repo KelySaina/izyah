@@ -23,6 +23,8 @@ export interface EventDTO {
   startTime: string | null;
   endTime: string | null;
   location: string | null;
+  latitude: number | null;
+  longitude: number | null;
   coverImage: string | null;
   slug: string;
   visibility: Event['visibility'];
@@ -45,6 +47,8 @@ function toEventDTO(event: EventWithCreator, counts: RsvpCounts): EventDTO {
     startTime: event.startTime,
     endTime: event.endTime,
     location: event.location,
+    latitude: event.latitude,
+    longitude: event.longitude,
     coverImage: event.coverImage,
     slug: event.slug,
     visibility: event.visibility,
@@ -82,6 +86,8 @@ export async function createEvent(creatorId: string, input: CreateEventInput): P
         startTime: input.startTime ?? null,
         endTime: input.endTime ?? null,
         location: input.location ?? null,
+        latitude: input.latitude ?? null,
+        longitude: input.longitude ?? null,
         coverImage: input.coverImage ?? null,
         visibility: input.visibility ?? 'PUBLIC',
         creatorId,
