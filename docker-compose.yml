@@ -175,14 +175,20 @@ services:
         condition: service_healthy
     labels:
       - traefik.enable=true
-      # OIDC + sign-in experience (public).
+
+      # Public OIDC
       - traefik.http.routers.logto.rule=Host(`${AUTH_DOMAIN}`)
-      - traefik.http.routers.logto.entrypoints=web
+      - traefik.http.routers.logto.entrypoints=websecure
+      - traefik.http.routers.logto.tls=true
+      - traefik.http.routers.logto.tls.certresolver=letsencrypt
       - traefik.http.routers.logto.service=logto
       - traefik.http.services.logto.loadbalancer.server.port=3001
-      # Admin console (keep restricted / internal in production).
+
+      # Admin
       - traefik.http.routers.logto-admin.rule=Host(`${AUTH_ADMIN_DOMAIN}`)
-      - traefik.http.routers.logto-admin.entrypoints=web
+      - traefefik.http.routers.logto-admin.entrypoints=websecure
+      - traefik.http.routers.logto-admin.tls=true
+      - traefik.http.routers.logto-admin.tls.certresolver=letsencrypt
       - traefik.http.routers.logto-admin.service=logto-admin
       - traefik.http.services.logto-admin.loadbalancer.server.port=3002
     networks:
