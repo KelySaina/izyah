@@ -22,6 +22,7 @@ import TaskList from '@/components/TaskList.vue';
 import PollList from '@/components/PollList.vue';
 import MediaGallery from '@/components/MediaGallery.vue';
 import EventDetailSkeleton from '@/components/EventDetailSkeleton.vue';
+import Lightbox from '@/components/Lightbox.vue';
 import { useEventsStore } from '@/stores/events';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
@@ -37,6 +38,7 @@ const ui = useUiStore();
 
 const loading = ref(true);
 const notFound = ref(false);
+const coverLightbox = ref<number | null>(null);
 
 type Tab = 'chat' | 'tasks' | 'polls' | 'media';
 const tab = ref<Tab>('chat');
@@ -95,13 +97,16 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
   </EmptyState>
 
   <div v-else class="space-y-6">
-    <!-- Cover -->
-    <img
+    <!-- Cover (tap to enlarge) -->
+    <button
       v-if="event.coverImage"
-      :src="event.coverImage"
-      :alt="event.title"
-      class="-mx-4 -mt-4 h-48 w-[calc(100%+2rem)] object-cover"
-    />
+      type="button"
+      class="-mx-4 -mt-4 block w-[calc(100%+2rem)] cursor-zoom-in"
+      aria-label="View cover photo"
+      @click="coverLightbox = 0"
+    >
+      <img :src="event.coverImage" :alt="event.title" class="h-48 w-full object-cover" />
+    </button>
 
     <!-- Header -->
     <header class="space-y-3">
@@ -175,5 +180,10 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
       <PollList v-else-if="tab === 'polls'" :key="`polls-${event.id}`" :event-id="event.id" />
       <MediaGallery v-else :key="`media-${event.id}`" :event-id="event.id" />
     </div>
+
+    <Lightbox
+      v-model="coverLightbox"
+      :items="event.coverImage ? [{ url: event.coverImage, type: 'IMAGE' }] : []"
+    />
   </div>
 </template>

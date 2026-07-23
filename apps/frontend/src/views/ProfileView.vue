@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Check, Download, Moon, Sun, ImagePlus, Camera, ShieldCheck, LogIn, LogOut } from 'lucide-vue-next';
 import { useImageUpload } from '@/composables/useImageUpload';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
 import { ApiError } from '@/services/api';
+import { isColorAvatar } from '@/lib/format';
 import Avatar from '@/components/Avatar.vue';
+import Lightbox from '@/components/Lightbox.vue';
 
 const identity = useIdentityStore();
 const ui = useUiStore();
+
+// Only a real uploaded photo can be enlarged (color tokens can't).
+const avatarIsPhoto = computed(() => !!identity.avatar && !isColorAvatar(identity.avatar));
+const avatarLightbox = ref<number | null>(null);
 
 const { uploading: avatarUploading, pickAndUpload: pickAvatar } = useImageUpload('avatar');
 async function uploadAvatar(camera: boolean): Promise<void> {
@@ -105,7 +111,15 @@ async function signOut(): Promise<void> {
 
     <!-- Avatar + identity -->
     <section class="flex flex-col items-center gap-3 text-center">
-      <Avatar :name="identity.displayName" :avatar="identity.avatar" :size="96" />
+      <component
+        :is="avatarIsPhoto ? 'button' : 'div'"
+        :type="avatarIsPhoto ? 'button' : undefined"
+        :class="avatarIsPhoto ? 'cursor-zoom-in rounded-full' : ''"
+        :aria-label="avatarIsPhoto ? 'View photo' : undefined"
+        @click="avatarIsPhoto && (avatarLightbox = 0)"
+      >
+        <Avatar :name="identity.displayName" :avatar="identity.avatar" :size="96" />
+      </component>
       <p class="text-lg font-semibold">{{ identity.displayName }}</p>
       <div class="flex gap-2">
         <button type="button" class="btn-ghost text-xs" :disabled="avatarUploading" @click="uploadAvatar(false)">
@@ -207,5 +221,10 @@ async function signOut(): Promise<void> {
 
     <!-- Debug / identity id -->
     <p class="text-center text-xs text-fg-3">ID: {{ identity.id ?? '—' }}</p>
+
+    <Lightbox
+      v-model="avatarLightbox"
+      :items="avatarIsPhoto ? [{ url: identity.avatar, type: 'IMAGE' }] : []"
+    />
   </div>
 </template>
