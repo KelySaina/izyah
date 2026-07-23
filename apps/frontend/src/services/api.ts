@@ -1,10 +1,11 @@
-import { getUserId } from './session';
+import { getToken } from './session';
 import type {
   AttendeeDTO,
   CreateEventInput,
   CreatePollInput,
   EventDTO,
   MediaDTO,
+  MeDTO,
   MessageDTO,
   NotificationDTO,
   PollDTO,
@@ -34,7 +35,7 @@ interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined>;
   /** When true, `body` is sent as-is (FormData) without JSON headers. */
   form?: boolean;
-  /** Skip the X-User-ID header (used by the bootstrap call). */
+  /** Skip the Authorization header (used by the bootstrap call). */
   anonymous?: boolean;
 }
 
@@ -47,8 +48,8 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   }
 
   const headers: Record<string, string> = {};
-  const userId = getUserId();
-  if (userId && !opts.anonymous) headers['X-User-ID'] = userId;
+  const token = getToken();
+  if (token && !opts.anonymous) headers['Authorization'] = `Bearer ${token}`;
 
   let body: BodyInit | undefined;
   if (opts.form) {
@@ -74,16 +75,24 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 
 /** Typed API surface — grouped by resource, mirrors the backend routes. */
 export const api = {
+  auth: {
+    /** Bootstrap a fresh anonymous identity + its signed session token. */
+    anonymous: () =>
+      request<{ user: MeDTO; token: string }>('/auth/anonymous', {
+        method: 'POST',
+        anonymous: true,
+      }),
+    /** The caller's own identity (private projection). */
+    me: () => request<MeDTO>('/auth/me'),
+  },
   users: {
-    create: (input: { displayName?: string; avatar?: string }) =>
-      request<UserDTO>('/users', { method: 'POST', body: input, anonymous: true }),
-    me: () => request<UserDTO>('/users/me'),
+    me: () => request<MeDTO>('/users/me'),
     updateMe: (input: { displayName?: string; avatar?: string }) =>
-      request<UserDTO>('/users/me', { method: 'PATCH', body: input }),
+      request<MeDTO>('/users/me', { method: 'PATCH', body: input }),
     get: (id: string) => request<UserDTO>(`/users/${id}`),
   },
   events: {
-    list: (scope: 'upcoming' | 'mine' | 'past' = 'upcoming') =>
+    list: (scope: 'upcoming' | 'mine' | 'past' | 'public' = 'upcoming') =>
       request<{ events: EventDTO[] }>('/events', { query: { scope } }).then((r) => r.events),
     get: (idOrSlug: string) => request<EventDTO>(`/events/${idOrSlug}`),
     create: (input: CreateEventInput) =>

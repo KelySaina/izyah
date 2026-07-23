@@ -152,6 +152,40 @@ services:
       - izyah
 
   # --------------------------------------------------------------------------
+  # Identity provider (OIDC) — account-linking / recovery / cross-device.
+  # Anonymous-first still works without it; Logto is only hit when a user
+  # chooses to "claim" their identity. See SETUP-AUTH.md for provisioning.
+  # --------------------------------------------------------------------------
+  logto:
+    image: svhd/logto:latest
+    container_name: izyah-logto
+    restart: unless-stopped
+    # Seed/upgrade the Logto schema (idempotent) then start.
+    entrypoint: ["sh", "-c", "npm run cli db seed -- --swe && npm start"]
+    environment:
+      TRUST_PROXY_HEADER: 1
+      DB_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/logto
+      ENDPOINT: http://${AUTH_DOMAIN}
+      ADMIN_ENDPOINT: http://${AUTH_ADMIN_DOMAIN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      # OIDC + sign-in experience (public).
+      - traefik.http.routers.logto.rule=Host(`${AUTH_DOMAIN}`)
+      - traefik.http.routers.logto.entrypoints=web
+      - traefik.http.routers.logto.service=logto
+      - traefik.http.services.logto.loadbalancer.server.port=3001
+      # Admin console (keep restricted / internal in production).
+      - traefik.http.routers.logto-admin.rule=Host(`${AUTH_ADMIN_DOMAIN}`)
+      - traefik.http.routers.logto-admin.entrypoints=web
+      - traefik.http.routers.logto-admin.service=logto-admin
+      - traefik.http.services.logto-admin.loadbalancer.server.port=3002
+    networks:
+      - izyah
+
+  # --------------------------------------------------------------------------
   # Backend API (Express REST + Socket.IO)
   # --------------------------------------------------------------------------
   backend:
@@ -167,6 +201,11 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
       CORS_ORIGINS: ${CORS_ORIGINS}
+      SESSION_SECRET: ${SESSION_SECRET}
+      APP_URL: ${APP_URL}
+      OIDC_ISSUER: ${OIDC_ISSUER}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
       SEED_ON_START: ${SEED_ON_START}
       RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS}
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX}
@@ -208,6 +247,8 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL}
         VITE_SOCKET_URL: ${VITE_SOCKET_URL}
+        VITE_OIDC_ISSUER: ${OIDC_ISSUER}
+        VITE_OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
     image: izyah-frontend
     container_name: izyah-frontend
     restart: unless-stopped

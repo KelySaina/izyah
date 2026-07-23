@@ -6,6 +6,7 @@ import { useEventsStore } from '@/stores/events';
 import { useUiStore } from '@/stores/ui';
 import { ApiError } from '@/services/api';
 import EventCard from '@/components/EventCard.vue';
+import EventCardSkeleton from '@/components/EventCardSkeleton.vue';
 import EmptyState from '@/components/EmptyState.vue';
 
 type Scope = 'upcoming' | 'mine' | 'past';
@@ -60,8 +61,8 @@ onMounted(() => load(active.value));
     </div>
 
     <!-- List -->
-    <div v-if="events.loading" class="grid place-items-center py-12 text-fg-3">
-      <div class="h-8 w-8 animate-spin rounded-full border-2 border-line/20 border-t-brand-500" />
+    <div v-if="events.loading" class="space-y-3">
+      <EventCardSkeleton v-for="n in 3" :key="n" />
     </div>
 
     <div v-else-if="events.events.length" class="space-y-3">

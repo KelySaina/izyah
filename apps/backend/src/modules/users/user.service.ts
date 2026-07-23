@@ -18,7 +18,8 @@ function pick<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)] as T;
 }
 
-/** Public-safe projection of a user. */
+/** Public-safe projection of a user. Exposed in creator/attendee lists — must
+ *  NEVER include email or other private fields. */
 export type UserDTO = Pick<User, 'id' | 'displayName' | 'avatar' | 'createdAt' | 'lastSeenAt'>;
 
 export function toUserDTO(user: User): UserDTO {
@@ -31,7 +32,27 @@ export function toUserDTO(user: User): UserDTO {
   };
 }
 
+/** Private projection returned ONLY to the user themselves (GET /auth/me,
+ *  /users/me). Carries account-linking state on top of the public fields. */
+export type MeDTO = UserDTO & {
+  email: string | null;
+  isClaimed: boolean;
+};
+
+export function toMeDTO(user: User): MeDTO {
+  return {
+    ...toUserDTO(user),
+    email: user.email,
+    isClaimed: user.isClaimed,
+  };
+}
+
 export async function createUser(input: CreateUserInput): Promise<UserDTO> {
+  return toUserDTO(await createUserEntity(input));
+}
+
+/** Create a user row and return the full entity (needed to mint a session token). */
+export async function createUserEntity(input: CreateUserInput = {}): Promise<User> {
   const user = await prisma.user.create({
     data: {
       displayName: input.displayName ?? pick(FRIENDLY_NAMES),
@@ -39,7 +60,7 @@ export async function createUser(input: CreateUserInput): Promise<UserDTO> {
     },
   });
   await track('user_created');
-  return toUserDTO(user);
+  return user;
 }
 
 export async function getUserById(id: string): Promise<UserDTO> {
@@ -48,7 +69,7 @@ export async function getUserById(id: string): Promise<UserDTO> {
   return toUserDTO(user);
 }
 
-export async function updateUser(id: string, input: UpdateUserInput): Promise<UserDTO> {
+export async function updateUser(id: string, input: UpdateUserInput): Promise<MeDTO> {
   const user = await prisma.user.update({ where: { id }, data: input });
-  return toUserDTO(user);
+  return toMeDTO(user);
 }

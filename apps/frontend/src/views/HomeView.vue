@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
-import { Plus, ArrowRight, CalendarPlus } from 'lucide-vue-next';
+import { Plus, ArrowRight, CalendarPlus, Compass } from 'lucide-vue-next';
 import { useEventsStore } from '@/stores/events';
 import { useUiStore } from '@/stores/ui';
 import { ApiError } from '@/services/api';
 import EventCard from '@/components/EventCard.vue';
+import EventCardSkeleton from '@/components/EventCardSkeleton.vue';
 import EmptyState from '@/components/EmptyState.vue';
 
 const events = useEventsStore();
@@ -28,12 +29,12 @@ function join(): void {
   router.push('/event/' + slug);
 }
 
-onMounted(async () => {
-  try {
-    await events.fetchEvents('upcoming');
-  } catch (err) {
+onMounted(() => {
+  const notify = (err: unknown) =>
     ui.toast(err instanceof ApiError ? err.message : 'Something went wrong', 'error');
-  }
+  // Fire both feeds in parallel; each renders as soon as it lands.
+  events.fetchEvents('upcoming').catch(notify);
+  events.fetchPublicEvents().catch(notify);
 });
 </script>
 
@@ -78,12 +79,12 @@ onMounted(async () => {
       </form>
     </section>
 
-    <!-- Upcoming events -->
+    <!-- Upcoming events (ones you're attending) -->
     <section class="space-y-3">
       <h2 class="text-xs font-bold uppercase tracking-wide text-fg-3">Upcoming</h2>
 
-      <div v-if="events.loading" class="grid place-items-center py-10">
-        <div class="h-8 w-8 animate-spin rounded-full border-2 border-line/20 border-t-brand-500" />
+      <div v-if="events.loading" class="space-y-3">
+        <EventCardSkeleton v-for="n in 2" :key="n" />
       </div>
 
       <div v-else-if="events.events.length" class="space-y-3">
@@ -98,6 +99,26 @@ onMounted(async () => {
       >
         <RouterLink to="/create" class="btn-primary">Create an event</RouterLink>
       </EmptyState>
+    </section>
+
+    <!-- Public events (discover — anyone can join) -->
+    <section class="space-y-3">
+      <h2 class="text-xs font-bold uppercase tracking-wide text-fg-3">Discover public events</h2>
+
+      <div v-if="events.publicLoading" class="space-y-3">
+        <EventCardSkeleton v-for="n in 2" :key="n" />
+      </div>
+
+      <div v-else-if="events.publicEvents.length" class="space-y-3">
+        <EventCard v-for="event in events.publicEvents" :key="event.id" :event="event" />
+      </div>
+
+      <EmptyState
+        v-else
+        :icon="Compass"
+        title="Nothing public right now"
+        subtitle="Public events people create will show up here."
+      />
     </section>
   </div>
 </template>

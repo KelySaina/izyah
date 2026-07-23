@@ -26,10 +26,12 @@ model User {
   createdAt   DateTime @default(now())
   lastSeenAt  DateTime @default(now())
 
-  // ---- Future account-linking columns (unused in MVP, kept nullable) ----
+  // ---- Account-linking columns (populated when a user claims via OIDC) ----
   email       String?  @unique
   phone       String?  @unique
   googleId    String?  @unique
+  // Verified OIDC subject (Logto `sub`). Links this row to an external identity.
+  authSubject String?  @unique
   isClaimed   Boolean  @default(false)
 
   createdEvents Event[]            @relation("EventCreator")

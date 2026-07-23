@@ -8,6 +8,12 @@ import { initSocket, shutdownSocket } from './realtime/io';
 import { startInlineWorkers, stopWorkers } from './queue/workers';
 
 async function main() {
+  // Refuse to run in production with the shipped dev signing key.
+  if (env.NODE_ENV === 'production' && env.SESSION_SECRET.startsWith('dev-insecure-')) {
+    logger.error('SESSION_SECRET is still the insecure dev default — set a strong secret.');
+    process.exit(1);
+  }
+
   // Make sure object storage buckets exist (no-op if minio-init already ran).
   await ensureBuckets().catch((err) => logger.warn({ err }, 'ensureBuckets failed'));
 

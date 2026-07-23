@@ -151,6 +151,8 @@ API_DOMAIN="api.$BASE"
 MEDIA_DOMAIN="media.$BASE"     # MinIO S3 endpoint (browser-facing object URLs)
 DB_DOMAIN="db.$BASE"           # Adminer
 TRAEFIK_DOMAIN="traefik.$BASE" # Traefik dashboard
+AUTH_DOMAIN="auth.$BASE"             # Logto OIDC endpoint (M2 account-linking)
+AUTH_ADMIN_DOMAIN="auth-admin.$BASE" # Logto admin console (M2)
 
 info "Mode: $MODE  ·  scheme: $SCHEME  ·  app host: $APP_DOMAIN"
 
@@ -188,6 +190,8 @@ fi
 
 POSTGRES_PASSWORD="$(gen)"
 MINIO_ROOT_PASSWORD="$(gen)"
+# 32 bytes for the session-token signing key (HMAC-SHA256).
+SESSION_SECRET="$(openssl rand -hex 32)"
 
 info "Writing production .env ..."
 cat > .env <<EOF
@@ -202,6 +206,8 @@ API_DOMAIN=$API_DOMAIN
 TRAEFIK_DOMAIN=$TRAEFIK_DOMAIN
 MINIO_CONSOLE_DOMAIN=$MEDIA_DOMAIN
 ADMINER_DOMAIN=$DB_DOMAIN
+AUTH_DOMAIN=$AUTH_DOMAIN
+AUTH_ADMIN_DOMAIN=$AUTH_ADMIN_DOMAIN
 
 # Browser-side URLs (baked into the frontend build).
 VITE_API_URL=$SCHEME://$API_DOMAIN
@@ -237,6 +243,19 @@ SEED_ON_START=false
 RATE_LIMIT_WINDOW_MS=60000
 RATE_LIMIT_MAX=120
 LOG_LEVEL=info
+
+# --- Auth / identity --------------------------------------------------------
+# HMAC key for anonymous session tokens. Required — the backend refuses to boot
+# in production with the insecure dev default. Regenerated on each setup.sh run.
+SESSION_SECRET=$SESSION_SECRET
+# Public URL of the app (used to build OIDC redirect/callback links in M2).
+APP_URL=$SCHEME://$APP_DOMAIN
+
+# --- OIDC (Logto) — empty = anonymous-only. Fill after provisioning ---------
+# See SETUP-AUTH.md. OIDC_ISSUER e.g. $SCHEME://$AUTH_DOMAIN/oidc
+OIDC_ISSUER=
+OIDC_AUDIENCE=
+OIDC_CLIENT_ID=
 
 # --- Analytics --------------------------------------------------------------
 ANALYTICS_ENABLED=true

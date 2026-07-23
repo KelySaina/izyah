@@ -5,7 +5,7 @@ import { createPubSubPair } from '../lib/redis';
 import { env } from '../config/env';
 import { logger } from '../lib/logger';
 import { prisma } from '../lib/prisma';
-import { isUuid } from '../utils/validation';
+import { verifySessionToken, looksLikeJwt } from '../lib/token';
 import { registerChatGateway } from './chat.gateway';
 import { registerPresence } from './presence';
 
@@ -29,15 +29,17 @@ export async function initSocket(server: HttpServer): Promise<SocketServer> {
   pubsub.sub = subClient;
   io.adapter(createAdapter(pubClient, subClient));
 
-  // Anonymous identity handshake: client sends { auth: { userId } }.
+  // Identity handshake: client sends { auth: { token } } — the same signed
+  // session token used for REST. The raw user id is no longer accepted.
   io.use(async (socket, next) => {
-    const userId =
-      (socket.handshake.auth?.userId as string | undefined) ??
-      (socket.handshake.query?.userId as string | undefined);
-    if (!userId || !isUuid(userId)) {
-      return next(new Error('unauthorized: missing X-User-ID'));
-    }
-    const user = await prisma.user.findUnique({ where: { id: userId } }).catch(() => null);
+    const token =
+      (socket.handshake.auth?.token as string | undefined) ??
+      (socket.handshake.query?.token as string | undefined);
+    // OIDC bearer tokens (JWTs) are wired in M2; only session tokens for now.
+    if (!token || looksLikeJwt(token)) return next(new Error('unauthorized: missing token'));
+    const claims = verifySessionToken(token);
+    if (!claims) return next(new Error('unauthorized: invalid token'));
+    const user = await prisma.user.findUnique({ where: { id: claims.sub } }).catch(() => null);
     if (!user) return next(new Error('unauthorized: unknown user'));
     socket.data.userId = user.id;
     socket.data.displayName = user.displayName;

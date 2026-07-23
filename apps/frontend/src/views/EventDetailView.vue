@@ -21,6 +21,7 @@ import ChatPanel from '@/components/ChatPanel.vue';
 import TaskList from '@/components/TaskList.vue';
 import PollList from '@/components/PollList.vue';
 import MediaGallery from '@/components/MediaGallery.vue';
+import EventDetailSkeleton from '@/components/EventDetailSkeleton.vue';
 import { useEventsStore } from '@/stores/events';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
@@ -82,9 +83,7 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
 </script>
 
 <template>
-  <div v-if="loading" class="grid place-items-center py-16">
-    <div class="h-8 w-8 animate-spin rounded-full border-2 border-line/20 border-t-brand-500" />
-  </div>
+  <EventDetailSkeleton v-if="loading" />
 
   <EmptyState
     v-else-if="notFound || !event"

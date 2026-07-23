@@ -1,5 +1,5 @@
 import { io, type Socket } from 'socket.io-client';
-import { getUserId } from './session';
+import { getToken } from './session';
 
 /**
  * Thin, framework-agnostic wrapper around the Socket.IO client. Stores/components
@@ -11,14 +11,14 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:4000';
 let socket: Socket | null = null;
 
 export function connectSocket(): Socket {
-  const userId = getUserId();
+  const token = getToken();
   if (socket?.connected) return socket;
   if (socket) socket.connect();
   else {
     socket = io(SOCKET_URL, {
       path: '/socket.io',
       transports: ['websocket', 'polling'],
-      auth: { userId },
+      auth: { token },
       autoConnect: true,
     });
   }

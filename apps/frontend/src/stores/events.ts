@@ -14,10 +14,14 @@ const EMPTY_COUNTS: RsvpCounts = { going: 0, maybe: 0, notGoing: 0, total: 0 };
 
 export const useEventsStore = defineStore('events', () => {
   const events = ref<EventDTO[]>([]);
+  // Discovery feed (upcoming PUBLIC events you're not in), kept separate so the
+  // Home page can show it alongside your "Upcoming" list.
+  const publicEvents = ref<EventDTO[]>([]);
   const current = ref<EventDTO | null>(null);
   const attendees = ref<AttendeeDTO[]>([]);
   const counts = ref<RsvpCounts>({ ...EMPTY_COUNTS });
   const loading = ref(false);
+  const publicLoading = ref(false);
 
   async function fetchEvents(scope: 'upcoming' | 'mine' | 'past' = 'upcoming'): Promise<void> {
     loading.value = true;
@@ -25,6 +29,15 @@ export const useEventsStore = defineStore('events', () => {
       events.value = await api.events.list(scope);
     } finally {
       loading.value = false;
+    }
+  }
+
+  async function fetchPublicEvents(): Promise<void> {
+    publicLoading.value = true;
+    try {
+      publicEvents.value = await api.events.list('public');
+    } finally {
+      publicLoading.value = false;
     }
   }
 
@@ -84,11 +97,14 @@ export const useEventsStore = defineStore('events', () => {
 
   return {
     events,
+    publicEvents,
     current,
     attendees,
     counts,
     loading,
+    publicLoading,
     fetchEvents,
+    fetchPublicEvents,
     fetchEvent,
     fetchAttendees,
     create,

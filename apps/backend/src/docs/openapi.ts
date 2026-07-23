@@ -11,12 +11,12 @@ export const openapiSpec = {
     title: "Izy'Ah API",
     version: '0.1.0',
     description:
-      "Attendee-first event platform. Passwordless anonymous identity via the `X-User-ID` header.",
+      'Attendee-first event platform. Frictionless anonymous identity via a signed session token (`Authorization: Bearer <token>`), obtained from POST /auth/anonymous.',
   },
   servers: [{ url: '/api', description: 'API root' }],
   components: {
     securitySchemes: {
-      AnonId: { type: 'apiKey', in: 'header', name: 'X-User-ID' },
+      BearerToken: { type: 'http', scheme: 'bearer', bearerFormat: 'session/JWT' },
     },
     schemas: {
       User: {
@@ -50,7 +50,7 @@ export const openapiSpec = {
       },
     },
   },
-  security: [{ AnonId: [] }],
+  security: [{ BearerToken: [] }],
   paths: {
     '/users': {
       post: {

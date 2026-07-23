@@ -16,6 +16,13 @@ export interface UserDTO {
   lastSeenAt: string;
 }
 
+/** Private projection of the current user (GET /auth/me). Carries
+ *  account-linking state; never returned for other users. */
+export interface MeDTO extends UserDTO {
+  email: string | null;
+  isClaimed: boolean;
+}
+
 export interface RsvpCounts {
   going: number;
   maybe: number;

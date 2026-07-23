@@ -33,7 +33,8 @@ export const updateEventSchema = z
   .refine((o) => Object.keys(o).length > 0, { message: 'nothing to update' });
 
 export const listEventsQuerySchema = z.object({
-  scope: z.enum(['mine', 'upcoming', 'past']).default('upcoming'),
+  // `public` = discovery feed of upcoming PUBLIC events you're not already in.
+  scope: z.enum(['mine', 'upcoming', 'past', 'public']).default('upcoming'),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 

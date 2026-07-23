@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { createUser, getUserById, updateUser, toUserDTO } from './user.service';
+import { createUser, getUserById, updateUser, toMeDTO } from './user.service';
 
 /** POST /users — bootstrap an anonymous identity (no header required). */
 export async function bootstrap(req: Request, res: Response) {
@@ -7,10 +7,10 @@ export async function bootstrap(req: Request, res: Response) {
   res.status(201).json(user);
 }
 
-/** GET /users/me — the caller's own identity. */
+/** GET /users/me — the caller's own identity (private projection). */
 export async function me(req: Request, res: Response) {
   // `identity` middleware already loaded and touched the user.
-  res.json(toUserDTO(req.user!));
+  res.json(toMeDTO(req.user!));
 }
 
 /** PATCH /users/me — edit display name / avatar. */

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { reactive } from 'vue';
+import { Globe, Lock } from 'lucide-vue-next';
 import ImagePicker from '@/components/ImagePicker.vue';
 import { useUiStore } from '@/stores/ui';
-import type { CreateEventInput } from '@/types';
+import type { CreateEventInput, EventVisibility } from '@/types';
 
 const props = withDefaults(
   defineProps<{
@@ -17,6 +18,21 @@ const emit = defineEmits<{ (e: 'submit', value: CreateEventInput): void }>();
 
 const ui = useUiStore();
 
+// Two-type model in the UI: Public (discoverable on Home) vs Private (link-only).
+// Any non-PUBLIC stored value collapses to "Private" for the toggle.
+const initialVisibility: 'PUBLIC' | 'PRIVATE' =
+  props.initial?.visibility && props.initial.visibility !== 'PUBLIC' ? 'PRIVATE' : 'PUBLIC';
+
+const visibilityOptions: {
+  value: 'PUBLIC' | 'PRIVATE';
+  label: string;
+  hint: string;
+  icon: typeof Globe;
+}[] = [
+  { value: 'PUBLIC', label: 'Public', hint: 'Listed on Home for anyone to discover', icon: Globe },
+  { value: 'PRIVATE', label: 'Private', hint: 'Hidden — only people with the link can join', icon: Lock },
+];
+
 // The <input type="date"> wants YYYY-MM-DD; normalise any ISO initial value.
 const form = reactive({
   title: props.initial?.title ?? '',
@@ -26,6 +42,7 @@ const form = reactive({
   endTime: props.initial?.endTime ?? '',
   location: props.initial?.location ?? '',
   coverImage: props.initial?.coverImage ?? '',
+  visibility: initialVisibility as EventVisibility,
 });
 
 function clean(value: string): string | undefined {
@@ -46,6 +63,7 @@ function onSubmit(): void {
     endTime: clean(form.endTime),
     location: clean(form.location),
     coverImage: clean(form.coverImage),
+    visibility: form.visibility,
   });
 }
 </script>
@@ -89,6 +107,30 @@ function onSubmit(): void {
     <div>
       <label class="label" for="ev-loc">Location</label>
       <input id="ev-loc" v-model="form.location" class="input" placeholder="Where?" />
+    </div>
+
+    <div>
+      <span class="label">Visibility</span>
+      <div class="grid grid-cols-2 gap-2">
+        <button
+          v-for="opt in visibilityOptions"
+          :key="opt.value"
+          type="button"
+          class="flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition"
+          :class="
+            form.visibility === opt.value
+              ? 'border-brand-500 bg-brand-500/10'
+              : 'border-line/15 bg-surface-2 hover:border-line/30'
+          "
+          :aria-pressed="form.visibility === opt.value"
+          @click="form.visibility = opt.value"
+        >
+          <span class="flex items-center gap-1.5 text-sm font-semibold text-fg">
+            <component :is="opt.icon" :size="15" :stroke-width="2.25" /> {{ opt.label }}
+          </span>
+          <span class="text-xs leading-snug text-fg-3">{{ opt.hint }}</span>
+        </button>
+      </div>
     </div>
 
     <button type="submit" class="btn-primary w-full" :disabled="loading">

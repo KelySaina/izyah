@@ -20,6 +20,11 @@ const envBool = (def: boolean) =>
     return /^(1|true|yes|on)$/i.test(String(v).trim());
   }, z.boolean());
 
+// docker-compose passes unset vars as "" (not undefined). Treat "" as unset so
+// optional fields stay optional and `.default()` can kick in.
+const emptyToUndef = (inner: z.ZodTypeAny) =>
+  z.preprocess((v) => (v === '' ? undefined : v), inner);
+
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(4000),
@@ -28,6 +33,21 @@ const schema = z.object({
   REDIS_URL: z.string().url(),
 
   CORS_ORIGINS: z.string().default('http://localhost:5173').transform(csv),
+
+  // --- Auth -----------------------------------------------------------------
+  // HMAC key for anonymous session tokens. MUST be overridden in production;
+  // server.ts warns loudly if the dev default is used with NODE_ENV=production.
+  SESSION_SECRET: emptyToUndef(z.string().min(16).default('dev-insecure-session-secret-change-me!!')),
+  // Public URL of the frontend (used to build magic/callback links).
+  APP_URL: emptyToUndef(z.string().url().default('http://izyah.localhost')),
+
+  // --- OIDC (Logto) — optional until the IdP is provisioned -----------------
+  // When OIDC_ISSUER is unset (or ""), account-linking is disabled and the app
+  // runs anonymous-only. JWKS URI defaults to the standard OIDC discovery path.
+  OIDC_ISSUER: emptyToUndef(z.string().url().optional()),
+  OIDC_JWKS_URI: emptyToUndef(z.string().url().optional()),
+  OIDC_AUDIENCE: emptyToUndef(z.string().optional()),
+  OIDC_CLIENT_ID: emptyToUndef(z.string().optional()),
 
   SEED_ON_START: envBool(false),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60_000),
@@ -60,3 +80,9 @@ if (!parsed.success) {
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === 'production';
 export const isTest = env.NODE_ENV === 'test';
+
+/** Account-linking is available only once an OIDC issuer is configured. */
+export const oidcEnabled = Boolean(env.OIDC_ISSUER);
+/** Explicit JWKS override. When unset, M2 discovers it from the issuer's
+ *  `/.well-known/openid-configuration` rather than guessing the path. */
+export const oidcJwksUri = env.OIDC_JWKS_URI;

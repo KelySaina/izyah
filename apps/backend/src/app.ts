@@ -11,6 +11,7 @@ import { mountDocs } from './docs/openapi';
 
 // Feature routers — each declares full `/...` paths and is mounted under /api.
 import { healthRouter } from './modules/health/health.routes';
+import { authRouter } from './modules/auth/auth.routes';
 import { usersRouter } from './modules/users/user.routes';
 import { eventsRouter } from './modules/events/event.routes';
 import { participantsRouter } from './modules/participants/participant.routes';
@@ -39,7 +40,7 @@ export function createApp(): Express {
   app.use(express.urlencoded({ extended: true }));
   app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
 
-  // Resolve anonymous identity from X-User-ID on every request.
+  // Resolve identity from the `Authorization: Bearer <token>` header.
   app.use(identity);
 
   // Health check is unauthenticated and un-throttled.
@@ -50,6 +51,7 @@ export function createApp(): Express {
 
   // Rate-limited API surface.
   app.use('/api', apiLimiter);
+  app.use('/api', authRouter);
   app.use('/api', usersRouter);
   app.use('/api', eventsRouter);
   app.use('/api', participantsRouter);

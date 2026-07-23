@@ -107,6 +107,13 @@ export async function listEvents(userId: string, query: ListEventsQuery): Promis
     where = { OR: [{ creatorId: userId }, { participants: { some: { userId } } }] };
   } else if (query.scope === 'past') {
     where = { date: { lt: now }, participants: { some: { userId } } };
+  } else if (query.scope === 'public') {
+    // Discovery feed: upcoming PUBLIC events I'm not already involved in.
+    where = {
+      date: { gte: now },
+      visibility: 'PUBLIC',
+      NOT: { participants: { some: { userId } } },
+    };
   } else {
     // upcoming: events I'm involved in that haven't happened yet.
     where = { date: { gte: now }, participants: { some: { userId } } };

@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { initIdentity, updateProfile as svcUpdateProfile } from '@/services/identityService';
-import type { UserDTO } from '@/types';
+import type { MeDTO } from '@/types';
 
 export const useIdentityStore = defineStore('identity', () => {
-  const user = ref<UserDTO | null>(null);
+  const user = ref<MeDTO | null>(null);
   const ready = ref(false);
   let initPromise: Promise<void> | null = null;
 
