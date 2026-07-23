@@ -182,16 +182,29 @@ $DC ps >/dev/null 2>&1 || DC="$SUDO docker"
 command -v openssl >/dev/null 2>&1 || { $SUDO apt-get update -y && $SUDO apt-get install -y openssl; }
 gen() { openssl rand -hex 24; }   # 48 hex chars: URL/env-safe, no escaping needed
 
+# Read a KEY=value from the current .env (empty if absent/blank). Used to REUSE
+# existing secrets on a re-run instead of rotating them.
+read_env() { [ -f .env ] && grep -E "^$1=" .env | head -n1 | cut -d= -f2- || true; }
+
 if [ -f .env ]; then
   bak=".env.bak.$(date +%Y%m%d%H%M%S)"
   cp .env "$bak"
-  warn "Existing .env backed up to $bak (its secrets are NOT reused)."
+  warn "Existing .env backed up to $bak. Existing secrets are REUSED (not rotated)."
+  warn "  To force-rotate everything, delete .env first — but that breaks the existing"
+  warn "  Postgres/MinIO volumes (password baked at init). Reprovision with 'down -v'."
 fi
 
-POSTGRES_PASSWORD="$(gen)"
-MINIO_ROOT_PASSWORD="$(gen)"
-# 32 bytes for the session-token signing key (HMAC-SHA256).
-SESSION_SECRET="$(openssl rand -hex 32)"
+# Reuse existing secrets when present so re-running setup.sh on a LIVE box does
+# not rotate credentials — rotating POSTGRES_PASSWORD against an existing volume
+# breaks DB auth (the password is baked at first init). Only mint what's missing.
+POSTGRES_PASSWORD="$(read_env POSTGRES_PASSWORD)"; [ -n "$POSTGRES_PASSWORD" ] || POSTGRES_PASSWORD="$(gen)"
+MINIO_ROOT_PASSWORD="$(read_env MINIO_ROOT_PASSWORD)"; [ -n "$MINIO_ROOT_PASSWORD" ] || MINIO_ROOT_PASSWORD="$(gen)"
+SESSION_SECRET="$(read_env SESSION_SECRET)"; [ -n "$SESSION_SECRET" ] || SESSION_SECRET="$(openssl rand -hex 32)"
+
+# Preserve any Logto/OIDC config already wired in (so a re-run doesn't blank it).
+OIDC_ISSUER="$(read_env OIDC_ISSUER)"
+OIDC_AUDIENCE="$(read_env OIDC_AUDIENCE)"
+OIDC_CLIENT_ID="$(read_env OIDC_CLIENT_ID)"
 
 info "Writing production .env ..."
 cat > .env <<EOF
@@ -246,16 +259,17 @@ LOG_LEVEL=info
 
 # --- Auth / identity --------------------------------------------------------
 # HMAC key for anonymous session tokens. Required — the backend refuses to boot
-# in production with the insecure dev default. Regenerated on each setup.sh run.
+# in production with the insecure dev default. Reused across re-runs; only
+# minted if absent from a prior .env.
 SESSION_SECRET=$SESSION_SECRET
 # Public URL of the app (used to build OIDC redirect/callback links in M2).
 APP_URL=$SCHEME://$APP_DOMAIN
 
 # --- OIDC (Logto) — empty = anonymous-only. Fill after provisioning ---------
 # See SETUP-AUTH.md. OIDC_ISSUER e.g. $SCHEME://$AUTH_DOMAIN/oidc
-OIDC_ISSUER=
-OIDC_AUDIENCE=
-OIDC_CLIENT_ID=
+OIDC_ISSUER=$OIDC_ISSUER
+OIDC_AUDIENCE=$OIDC_AUDIENCE
+OIDC_CLIENT_ID=$OIDC_CLIENT_ID
 
 # --- Analytics --------------------------------------------------------------
 ANALYTICS_ENABLED=true

@@ -19,7 +19,27 @@ LAST_GOOD_FILE=".deployed_tag"
 HEALTH_RETRIES=30       # 30 * 4s = up to 2 min for migrations + boot
 HEALTH_DELAY=4
 
-log() { printf '\n\033[36m==> %s\033[0m\n' "$*"; }
+log()  { printf '\n\033[36m==> %s\033[0m\n' "$*"; }
+die()  { printf '\n\033[31m==> %s\033[0m\n' "$*" >&2; exit 1; }
+
+# Read a KEY=value from the (gitignored) .env on the box.
+read_env() { grep -E "^$1=" .env | head -n1 | cut -d= -f2- || true; }
+
+# Preflight: catch config that would crash the backend at boot BEFORE we
+# recreate containers, so it fails in 1s with a clear reason instead of a
+# 2-minute health-timeout + rollback.
+preflight() {
+  [ -f .env ] || die ".env not found in $(pwd) — cannot deploy."
+  local node_env session
+  node_env="$(read_env NODE_ENV)"
+  session="$(read_env SESSION_SECRET)"
+  if [ "$node_env" = "production" ]; then
+    case "$session" in
+      "")            die "SESSION_SECRET is missing from .env — set one: openssl rand -hex 32" ;;
+      dev-insecure-*) die "SESSION_SECRET is still the insecure dev default — set a real one: openssl rand -hex 32" ;;
+    esac
+  fi
+}
 
 # API health URL, derived from the (gitignored) .env on the box.
 API_DOMAIN="$(grep -E '^API_DOMAIN=' .env | cut -d= -f2-)"
@@ -58,6 +78,7 @@ health_ok() {
   return 1
 }
 
+preflight
 deploy_tag "$IMAGE_TAG"
 
 if health_ok; then
