@@ -99,6 +99,8 @@ services:
     image: svhd/logto:latest
     container_name: izyah-logto-dev
     restart: unless-stopped
+    # Only starts with `--profile auth` (M2). A plain `up` leaves it dormant.
+    profiles: ["auth"]
     entrypoint: ["sh", "-c", "npm run cli db seed -- --swe && npm start"]
     environment:
       TRUST_PROXY_HEADER: 1

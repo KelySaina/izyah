@@ -160,6 +160,9 @@ services:
     image: svhd/logto:latest
     container_name: izyah-logto
     restart: unless-stopped
+    # Dormant until M2: only starts with `--profile auth`, so a normal
+    # `up` / setup.sh / CI deploy never touches it.
+    profiles: ["auth"]
     # Seed/upgrade the Logto schema (idempotent) then start.
     entrypoint: ["sh", "-c", "npm run cli db seed -- --swe && npm start"]
     environment:

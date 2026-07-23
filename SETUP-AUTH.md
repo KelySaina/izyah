@@ -33,22 +33,29 @@ can't be replayed.
 
 ## 1. Bring Logto up
 
+Logto is gated behind the `auth` compose profile, so it stays dormant during a
+normal `up` / `setup.sh` / CI deploy and only starts when you opt in.
+
 **Dev (host-native apps + infra in Docker):**
 ```bash
 docker compose -f docker-compose.dev.yml up -d postgres
 # First run only — create Logto's own database:
 docker compose -f docker-compose.dev.yml exec postgres createdb -U izyah logto
-docker compose -f docker-compose.dev.yml up -d logto
+docker compose -f docker-compose.dev.yml --profile auth up -d logto
 ```
 - OIDC endpoint: http://localhost:3001
 - Admin console: http://localhost:3002
 
-**Prod (full stack):** `logto` is already wired into `docker-compose.yml` behind
-Traefik at `AUTH_DOMAIN` / `AUTH_ADMIN_DOMAIN`. On a pre-existing Postgres volume,
-create the `logto` DB once (the `init.sql` only auto-creates it on a fresh volume):
+**Prod (full stack):** `logto` is wired into `docker-compose.yml` behind Traefik
+at `AUTH_DOMAIN` / `AUTH_ADMIN_DOMAIN`. On a pre-existing Postgres volume, create
+the `logto` DB once (the `init.sql` only auto-creates it on a fresh volume), then
+start it with the profile:
 ```bash
 docker compose exec postgres createdb -U "$POSTGRES_USER" logto
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile auth up -d logto
 ```
+> Prod TLS labels for the logto routers aren't in the generated overlay yet —
+> that's part of M2 wiring.
 > Keep `AUTH_ADMIN_DOMAIN` internal / IP-restricted in production.
 
 ## 2. Register the apps in the Logto console
