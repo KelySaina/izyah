@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <!-- Full-bleed gold for the maskable safe zone -->
-  <rect width="512" height="512" fill="#F7C331"/>
-  <!-- Mark kept within the central ~80% safe area -->
-  <circle cx="256" cy="188" r="34" fill="#101012"/>
-  <rect x="222" y="240" width="68" height="130" rx="34" fill="#101012"/>
-</svg>

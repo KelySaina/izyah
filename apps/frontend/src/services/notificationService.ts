@@ -17,7 +17,7 @@ export async function requestPermission(): Promise<boolean> {
 
 export function notify(title: string, body?: string): void {
   if (!isSupported() || Notification.permission !== 'granted') return;
-  new Notification(title, { body, icon: '/icons/icon.svg' });
+  new Notification(title, { body, icon: '/icons/icon-192.png' });
 }
 
 // Extension point: subscribe to Web Push. Requires a VAPID key + backend route.
