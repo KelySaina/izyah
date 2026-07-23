@@ -186,7 +186,7 @@ services:
 
       # Admin
       - traefik.http.routers.logto-admin.rule=Host(`${AUTH_ADMIN_DOMAIN}`)
-      - traefefik.http.routers.logto-admin.entrypoints=websecure
+      - traefik.http.routers.logto-admin.entrypoints=websecure
       - traefik.http.routers.logto-admin.tls=true
       - traefik.http.routers.logto-admin.tls.certresolver=letsencrypt
       - traefik.http.routers.logto-admin.service=logto-admin
