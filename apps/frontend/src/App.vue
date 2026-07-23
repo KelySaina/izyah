@@ -4,6 +4,7 @@ import { RouterLink, RouterView } from 'vue-router';
 import { useRegisterSW } from 'virtual:pwa-register/vue';
 import { Home as HomeIcon, CalendarDays, User as UserIcon, Plus, Moon, Sun, RefreshCw } from 'lucide-vue-next';
 import Avatar from '@/components/Avatar.vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
 
@@ -135,6 +136,9 @@ onMounted(() => {
         {{ t.message }}
       </div>
     </div>
+
+    <!-- App-wide confirm dialog (replaces window.confirm) -->
+    <ConfirmDialog />
   </div>
 </template>
 

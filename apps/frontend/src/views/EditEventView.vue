@@ -61,7 +61,13 @@ async function onSubmit(value: CreateEventInput): Promise<void> {
 }
 
 async function onDelete(): Promise<void> {
-  if (!window.confirm('Delete this event? This cannot be undone.')) return;
+  const ok = await ui.confirm({
+    title: 'Delete event',
+    message: 'Delete this event? This cannot be undone.',
+    confirmText: 'Delete',
+    danger: true,
+  });
+  if (!ok) return;
   try {
     await events.remove(props.id);
     ui.toast('Event deleted', 'success');

@@ -8,6 +8,18 @@ export interface Toast {
   type: ToastType;
 }
 
+export interface ConfirmOptions {
+  title?: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  /** Style the confirm button as destructive (red). */
+  danger?: boolean;
+}
+interface ConfirmState extends ConfirmOptions {
+  resolve: (ok: boolean) => void;
+}
+
 // Minimal BeforeInstallPromptEvent typing (not in lib.dom yet).
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -23,6 +35,7 @@ export const useUiStore = defineStore('ui', () => {
     typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
   const theme = ref<'dark' | 'light'>(initialDark ? 'dark' : 'light');
   const toasts = ref<Toast[]>([]);
+  const confirmState = ref<ConfirmState | null>(null);
   const deferredInstall = ref<BeforeInstallPromptEvent | null>(null);
   const canInstall = computed(() => deferredInstall.value !== null);
 
@@ -35,6 +48,19 @@ export const useUiStore = defineStore('ui', () => {
   }
   function removeToast(id: number): void {
     toasts.value = toasts.value.filter((t) => t.id !== id);
+  }
+
+  /** In-app replacement for window.confirm(). Resolves true/false. */
+  function confirm(options: ConfirmOptions): Promise<boolean> {
+    // Cancel any dialog already open before showing the new one.
+    confirmState.value?.resolve(false);
+    return new Promise<boolean>((resolve) => {
+      confirmState.value = { ...options, resolve };
+    });
+  }
+  function resolveConfirm(ok: boolean): void {
+    confirmState.value?.resolve(ok);
+    confirmState.value = null;
   }
 
   function applyTheme(): void {
@@ -66,9 +92,12 @@ export const useUiStore = defineStore('ui', () => {
   return {
     theme,
     toasts,
+    confirmState,
     canInstall,
     toast,
     removeToast,
+    confirm,
+    resolveConfirm,
     applyTheme,
     toggleTheme,
     setInstallPrompt,

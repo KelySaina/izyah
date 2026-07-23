@@ -84,7 +84,12 @@ async function claim(): Promise<void> {
 }
 
 async function signOut(): Promise<void> {
-  if (!window.confirm('Sign out on this device? You can sign back in anytime.')) return;
+  const ok = await ui.confirm({
+    title: 'Sign out?',
+    message: 'Sign out on this device? You can sign back in anytime.',
+    confirmText: 'Sign out',
+  });
+  if (!ok) return;
   try {
     await identity.signOut();
     ui.toast('Signed out', 'success');
