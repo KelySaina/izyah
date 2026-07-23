@@ -32,9 +32,8 @@ can't be replayed.
   route, sign-out. All gated on `VITE_OIDC_*` being present (else UI stays hidden).
 - Inert until `OIDC_ISSUER` (backend) + `VITE_OIDC_*` (frontend) are set — see §3.
 
-**Not yet done:** prod TLS labels for the logto routers in the generated overlay;
-merging an anonymous user's events into a pre-existing account on first sign-in
-(currently the anonymous row is abandoned in that case).
+**Not yet done:** merging an anonymous user's events into a pre-existing account
+on first sign-in (currently the anonymous row is abandoned in that case).
 
 ---
 
@@ -61,8 +60,8 @@ start it with the profile:
 docker compose exec postgres createdb -U "$POSTGRES_USER" logto
 docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile auth up -d logto
 ```
-> Prod TLS labels for the logto routers aren't in the generated overlay yet —
-> that's part of M2 wiring.
+> The logto routers carry `websecure` + Let's Encrypt TLS labels in
+> `docker-compose.yml`, so they get certs once started with `--profile auth`.
 > Keep `AUTH_ADMIN_DOMAIN` internal / IP-restricted in production.
 
 ## 2. Register the apps in the Logto console

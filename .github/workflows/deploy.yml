@@ -114,6 +114,8 @@ jobs:
           build-args: |
             VITE_API_URL=${{ vars.VITE_API_URL }}
             VITE_SOCKET_URL=${{ vars.VITE_SOCKET_URL }}
+            VITE_OIDC_ISSUER=${{ vars.VITE_OIDC_ISSUER }}
+            VITE_OIDC_CLIENT_ID=${{ vars.VITE_OIDC_CLIENT_ID }}
           tags: |
             ${{ env.IMAGE_FRONTEND }}:${{ github.sha }}
             ${{ env.IMAGE_FRONTEND }}:latest
