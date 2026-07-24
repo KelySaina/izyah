@@ -48,11 +48,17 @@ async function nativeShare(): Promise<void> {
       :href="googleCalendarUrl(event)"
       target="_blank"
       rel="noopener noreferrer"
+      aria-label="Add to Google Calendar"
     >
-      <CalendarPlus :size="18" class="text-accent" /> Calendar
+      <CalendarPlus :size="18" class="text-accent" /> Google Cal
     </a>
-    <button type="button" class="flex flex-col items-center gap-1.5 rounded-xl bg-surface py-3 text-[11px] font-medium text-fg-2 transition active:scale-95 hover:bg-surface-2" @click="downloadICS(event)">
-      <Download :size="18" class="text-accent" /> .ics
+    <button
+      type="button"
+      class="flex flex-col items-center gap-1.5 rounded-xl bg-surface py-3 text-[11px] font-medium text-fg-2 transition active:scale-95 hover:bg-surface-2"
+      aria-label="Download for Apple Calendar, Outlook, or other calendar apps"
+      @click="downloadICS(event)"
+    >
+      <Download :size="18" class="text-accent" /> Other Cal
     </button>
   </div>
 </template>

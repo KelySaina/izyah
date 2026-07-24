@@ -178,7 +178,7 @@ function clearPin(): void {
   <div class="space-y-3">
     <!-- Display name (stored label) -->
     <div>
-      <label class="label" for="ev-loc-name">Location name</label>
+      <label class="label" for="ev-loc-name">Location name *</label>
       <input
         id="ev-loc-name"
         v-model="label"

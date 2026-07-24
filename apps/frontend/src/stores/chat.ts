@@ -24,6 +24,10 @@ export const useChatStore = defineStore('chat', () => {
   const hasMore = ref(true);
   /** Messages from other people received since the chat UI was last opened. */
   const unread = ref(0);
+  /** Whether the Chat/Tasks/Polls bottom sheet is open — lives here (not in
+   *  App.vue) so any view can trigger it, e.g. a summary card on the event
+   *  detail page, not just the header icon. */
+  const sheetOpen = ref(false);
 
   const typingUsers = reactive<Record<string, string>>({}); // userId -> displayName
   const typingTimers: Record<string, ReturnType<typeof setTimeout>> = {};
@@ -133,6 +137,7 @@ export const useChatStore = defineStore('chat', () => {
     loadingOlder,
     hasMore,
     unread,
+    sheetOpen,
     typingNames,
     open,
     close,

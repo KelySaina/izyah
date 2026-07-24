@@ -18,12 +18,14 @@ export const createEventSchema = z.object({
   date: z.coerce.date(),
   startTime: time,
   endTime: time,
-  location: optionalText(200),
+  // Required — mirrors the frontend: publishing without saying where, or
+  // without a conscious public/private choice, isn't allowed.
+  location: sanitizedText(200),
   latitude,
   longitude,
   coverImage: url,
   capacity,
-  visibility: z.enum(['PUBLIC', 'UNLISTED', 'PRIVATE']).optional(),
+  visibility: z.enum(['PUBLIC', 'UNLISTED', 'PRIVATE']),
 });
 
 export const updateEventSchema = z
@@ -33,7 +35,8 @@ export const updateEventSchema = z
     date: z.coerce.date().optional(),
     startTime: time,
     endTime: time,
-    location: optionalText(200),
+    // Omittable (partial update), but can't be cleared to empty if present.
+    location: sanitizedText(200).optional(),
     latitude,
     longitude,
     coverImage: url,

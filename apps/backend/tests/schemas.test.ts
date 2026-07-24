@@ -9,18 +9,45 @@ describe('event schema', () => {
       title: '  Birthday   party ',
       date: '2030-01-01T18:00:00.000Z',
       startTime: '18:00',
+      location: 'The rooftop',
+      visibility: 'PUBLIC',
     });
     expect(parsed.title).toBe('Birthday party'); // whitespace collapsed
     expect(parsed.date).toBeInstanceOf(Date);
   });
 
   it('rejects an empty title', () => {
-    expect(() => createEventSchema.parse({ title: '   ', date: '2030-01-01' })).toThrow();
+    expect(() =>
+      createEventSchema.parse({
+        title: '   ',
+        date: '2030-01-01',
+        location: 'x',
+        visibility: 'PUBLIC',
+      }),
+    ).toThrow();
   });
 
   it('rejects a malformed time', () => {
     expect(() =>
-      createEventSchema.parse({ title: 'x', date: '2030-01-01', startTime: '25:99' }),
+      createEventSchema.parse({
+        title: 'x',
+        date: '2030-01-01',
+        startTime: '25:99',
+        location: 'x',
+        visibility: 'PUBLIC',
+      }),
+    ).toThrow();
+  });
+
+  it('rejects a missing location', () => {
+    expect(() =>
+      createEventSchema.parse({ title: 'x', date: '2030-01-01', visibility: 'PUBLIC' }),
+    ).toThrow();
+  });
+
+  it('rejects a missing visibility', () => {
+    expect(() =>
+      createEventSchema.parse({ title: 'x', date: '2030-01-01', location: 'x' }),
     ).toThrow();
   });
 });

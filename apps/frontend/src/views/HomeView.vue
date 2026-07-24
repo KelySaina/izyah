@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
-import { Plus, ArrowRight, CalendarPlus, Compass } from 'lucide-vue-next';
+import { Plus, ArrowRight, Compass } from 'lucide-vue-next';
 import { useEventsStore } from '@/stores/events';
 import { useUiStore } from '@/stores/ui';
 import { ApiError } from '@/services/api';
@@ -36,6 +36,11 @@ onMounted(() => {
   events.fetchEvents('upcoming').catch(notify);
   events.fetchPublicEvents().catch(notify);
 });
+
+// With nothing upcoming, lead with real content (Discover) instead of an
+// empty state — the hero above already has the one "Create an event" CTA
+// this page needs.
+const upcomingFirst = computed(() => events.loading || events.events.length > 0);
 </script>
 
 <template>
@@ -79,51 +84,49 @@ onMounted(() => {
       </form>
     </section>
 
-    <!-- Upcoming events (ones you're attending) -->
-    <section class="space-y-3">
-      <h2 class="text-xs font-bold uppercase tracking-wide text-fg-3">Upcoming</h2>
+    <div class="flex flex-col gap-8">
+      <!-- Upcoming events (ones you're attending) -->
+      <section class="space-y-3" :class="upcomingFirst ? 'order-1' : 'order-2'">
+        <h2 class="text-xs font-bold uppercase tracking-wide text-fg-3">Upcoming</h2>
 
-      <div v-if="events.loading" class="space-y-3">
-        <EventCardSkeleton v-for="n in 2" :key="n" />
-      </div>
+        <div v-if="events.loading" class="space-y-3">
+          <EventCardSkeleton v-for="n in 2" :key="n" />
+        </div>
 
-      <div v-else-if="events.events.length" class="space-y-3">
-        <EventCard v-for="event in events.events" :key="event.id" :event="event" />
-      </div>
+        <div v-else-if="events.events.length" class="space-y-3">
+          <EventCard v-for="event in events.events" :key="event.id" :event="event" />
+        </div>
 
-      <EmptyState
-        v-else
-        :icon="CalendarPlus"
-        title="No upcoming events"
-        subtitle="Be the first to plan something."
-      >
-        <RouterLink to="/create" class="btn-primary">Create an event</RouterLink>
-      </EmptyState>
-    </section>
+        <div v-else class="card flex items-center justify-between gap-3 p-4 text-sm text-fg-2">
+          <span>No upcoming events yet.</span>
+          <RouterLink to="/create" class="font-semibold text-accent">Create one →</RouterLink>
+        </div>
+      </section>
 
-    <!-- Public events (discover — anyone can join) -->
-    <section class="space-y-3">
-      <h2 class="text-xs font-bold uppercase tracking-wide text-fg-3">Discover public events</h2>
+      <!-- Public events (discover — anyone can join) -->
+      <section class="space-y-3" :class="upcomingFirst ? 'order-2' : 'order-1'">
+        <h2 class="text-xs font-bold uppercase tracking-wide text-fg-3">Discover public events</h2>
 
-      <div v-if="events.publicLoading" class="space-y-3">
-        <EventCardSkeleton v-for="n in 2" :key="n" />
-      </div>
+        <div v-if="events.publicLoading" class="space-y-3">
+          <EventCardSkeleton v-for="n in 2" :key="n" />
+        </div>
 
-      <div v-else-if="events.publicEvents.length" class="space-y-3">
-        <EventCard
-          v-for="(event, i) in events.publicEvents"
-          :key="event.id"
-          :event="event"
-          :trending="i < 3 && event.counts.going > 1"
+        <div v-else-if="events.publicEvents.length" class="space-y-3">
+          <EventCard
+            v-for="(event, i) in events.publicEvents"
+            :key="event.id"
+            :event="event"
+            :trending="i < 3 && event.counts.going > 1"
+          />
+        </div>
+
+        <EmptyState
+          v-else
+          :icon="Compass"
+          title="Nothing public right now"
+          subtitle="Public events people create will show up here."
         />
-      </div>
-
-      <EmptyState
-        v-else
-        :icon="Compass"
-        title="Nothing public right now"
-        subtitle="Public events people create will show up here."
-      />
-    </section>
+      </section>
+    </div>
   </div>
 </template>

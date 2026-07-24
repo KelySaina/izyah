@@ -1,7 +1,18 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
-import { Clock, MapPin, Pencil, Compass, Image as ImageIcon, PartyPopper } from 'lucide-vue-next';
+import {
+  Clock,
+  MapPin,
+  Pencil,
+  Compass,
+  Image as ImageIcon,
+  PartyPopper,
+  MessageCircle,
+  ListChecks,
+  BarChart3,
+  ChevronRight,
+} from 'lucide-vue-next';
 import Avatar from '@/components/Avatar.vue';
 import DateBadge from '@/components/DateBadge.vue';
 import EmptyState from '@/components/EmptyState.vue';
@@ -16,7 +27,7 @@ import { useEventsStore } from '@/stores/events';
 import { useIdentityStore } from '@/stores/identity';
 import { useChatStore } from '@/stores/chat';
 import { useUiStore } from '@/stores/ui';
-import { ApiError } from '@/services/api';
+import { api, ApiError } from '@/services/api';
 import { formatDate, formatTimeRange } from '@/lib/format';
 import type { RsvpStatus } from '@/types';
 
@@ -30,6 +41,10 @@ const ui = useUiStore();
 const loading = ref(true);
 const notFound = ref(false);
 const coverLightbox = ref<number | null>(null);
+// Best-effort counts for the Chat/Tasks/Polls entry point below — fetched
+// alongside the page, never blocking it, since they're a secondary signal.
+const taskCount = ref(0);
+const pollCount = ref(0);
 
 // Chat (and its presence/unread tracking) stays joined for as long as this
 // event's page is open — the Chat/Tasks/Polls sheet itself lives in App.vue,
@@ -42,11 +57,24 @@ const isCreator = computed(() => !!event.value && identity.id === event.value.cr
 // its start/end time. Matches the backend's own upcoming/past bucketing.
 const isPast = computed(() => !!event.value && new Date(event.value.date) < new Date());
 
+async function loadCounts(eventId: string): Promise<void> {
+  try {
+    const [tasks, polls] = await Promise.all([api.tasks.list(eventId), api.polls.list(eventId)]);
+    taskCount.value = tasks.length;
+    pollCount.value = polls.length;
+  } catch {
+    // Non-critical — the entry point just shows without task/poll counts.
+  }
+}
+
 async function load(idOrSlug: string): Promise<void> {
   loading.value = true;
   notFound.value = false;
+  taskCount.value = 0;
+  pollCount.value = 0;
   try {
     const e = await events.fetchEvent(idOrSlug);
+    void loadCounts(e.id);
     await events.fetchAttendees(e.id);
     await chat.open(e.id);
   } catch (err) {
@@ -166,6 +194,35 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
       :capacity="event.capacity"
       @change="onRsvp"
     />
+
+    <!-- Chat / tasks / polls entry point -->
+    <button
+      type="button"
+      class="card flex w-full items-center justify-between gap-3 p-4 text-left transition active:scale-[0.99] hover:bg-surface-2"
+      @click="chat.sheetOpen = true"
+    >
+      <div class="flex items-center gap-4 text-sm text-fg-2">
+        <span class="flex items-center gap-1.5">
+          <MessageCircle :size="15" class="text-accent" /> {{ chat.messages.length }}
+        </span>
+        <span class="flex items-center gap-1.5">
+          <ListChecks :size="15" class="text-accent" /> {{ taskCount }}
+        </span>
+        <span class="flex items-center gap-1.5">
+          <BarChart3 :size="15" class="text-accent" /> {{ pollCount }}
+        </span>
+      </div>
+      <span class="flex items-center gap-1 text-xs font-semibold text-fg-3">
+        Chat, tasks & polls
+        <span
+          v-if="chat.unread > 0"
+          class="grid h-4 min-w-4 place-items-center rounded-full bg-brand-500 px-1 text-[10px] font-bold leading-none text-ink-900"
+        >
+          {{ chat.unread > 9 ? '9+' : chat.unread }}
+        </span>
+        <ChevronRight :size="14" />
+      </span>
+    </button>
 
     <!-- Attendees -->
     <section class="card space-y-3 p-4">

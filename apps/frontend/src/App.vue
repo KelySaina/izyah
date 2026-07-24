@@ -28,7 +28,6 @@ const events = useEventsStore();
 const notifications = useNotificationsStore();
 const route = useRoute();
 
-const chatOpen = ref(false);
 const notificationsOpen = ref(false);
 const onEventPage = computed(() => route.name === 'event');
 const currentEventId = computed(() => events.current?.id ?? null);
@@ -80,7 +79,7 @@ onMounted(() => {
           v-if="onEventPage"
           class="relative grid h-9 w-9 place-items-center rounded-full text-fg-2 transition hover:bg-surface-2"
           aria-label="Open chat"
-          @click="chatOpen = true"
+          @click="chat.sheetOpen = true"
         >
           <MessageCircle :size="18" />
           <span
@@ -190,7 +189,7 @@ onMounted(() => {
     <ConfirmDialog />
 
     <!-- Chat / tasks / polls sheet for the event currently being viewed -->
-    <ChatSheet v-model="chatOpen" :event-id="currentEventId" />
+    <ChatSheet v-model="chat.sheetOpen" :event-id="currentEventId" />
 
     <!-- Notifications sheet -->
     <NotificationsSheet v-model="notificationsOpen" />
