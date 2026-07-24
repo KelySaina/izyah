@@ -110,6 +110,17 @@ export async function createEvent(creatorId: string, input: CreateEventInput): P
   return toEventDTO(event, { going: 1, maybe: 0, notGoing: 0, waitlist: 0, total: 1 });
 }
 
+/** Popularity signal for the public discovery feed: attendance + waitlist
+ *  demand (oversubscription is a stronger signal than capacity allows for),
+ *  with a same-week boost so something happening imminently can surface
+ *  over a bigger event that's still weeks out. */
+function trendingScore(event: EventDTO): number {
+  const attendance = event.counts.going + event.counts.waitlist * 0.5;
+  const daysAway = Math.max(0, (event.date.getTime() - Date.now()) / 86_400_000);
+  const soonBoost = daysAway <= 1 ? 1.5 : daysAway <= 7 ? 1.2 : 1;
+  return attendance * soonBoost;
+}
+
 export async function listEvents(userId: string, query: ListEventsQuery): Promise<EventDTO[]> {
   // Events are day-granular: a date-only input is stored at 00:00 UTC. Bucket by
   // the START of today (UTC) so an event dated *today* counts as upcoming for the
@@ -134,16 +145,27 @@ export async function listEvents(userId: string, query: ListEventsQuery): Promis
     where = { date: { gte: todayStart }, participants: { some: { userId } } };
   }
 
+  // Trending needs a wider candidate pool to rank before truncating to the
+  // requested page size, since popularity isn't something Postgres can sort
+  // by directly here (counts are computed per-event below, not a column).
+  const trending = query.scope === 'public';
+
   const events = await prisma.event.findMany({
     where,
     include: { creator: true },
     orderBy: { date: query.scope === 'past' ? 'desc' : 'asc' },
-    take: query.limit,
+    take: trending ? Math.min(Math.max(query.limit * 4, 50), 200) : query.limit,
   });
 
   // Batch counts to avoid N+1.
   const counts = await Promise.all(events.map((e) => computeCounts(e.id)));
-  return events.map((e, i) => toEventDTO(e, counts[i]!));
+  let dtos = events.map((e, i) => toEventDTO(e, counts[i]!));
+
+  if (trending) {
+    dtos = dtos.sort((a, b) => trendingScore(b) - trendingScore(a)).slice(0, query.limit);
+  }
+
+  return dtos;
 }
 
 async function findEventCore(idOrSlug: string): Promise<EventWithCreator> {

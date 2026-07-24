@@ -1,5 +1,5 @@
 import type { Job } from 'bullmq';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import type { NotificationJob } from '../index';
 import { prisma } from '../../lib/prisma';
 import { logger } from '../../lib/logger';

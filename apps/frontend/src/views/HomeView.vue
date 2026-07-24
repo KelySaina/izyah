@@ -110,7 +110,12 @@ onMounted(() => {
       </div>
 
       <div v-else-if="events.publicEvents.length" class="space-y-3">
-        <EventCard v-for="event in events.publicEvents" :key="event.id" :event="event" />
+        <EventCard
+          v-for="(event, i) in events.publicEvents"
+          :key="event.id"
+          :event="event"
+          :trending="i < 3 && event.counts.going > 1"
+        />
       </div>
 
       <EmptyState

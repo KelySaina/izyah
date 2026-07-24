@@ -10,12 +10,33 @@ const AVATAR_COLORS = [
   '#DC2626', '#DB2777', '#EA580C', '#4F46E5', '#0D9488',
 ];
 
-const FRIENDLY_NAMES = [
-  'Guest', 'Explorer', 'Voyager', 'Companion', 'Friend',
-];
+/** Mood word for auto-assigned anonymous display names — paired with an
+ *  IDENTITY noun below (e.g. "Happy Voyager"). */
+const MOODS = [
+  'Happy', 'Cheerful', 'Sunny', 'Merry', 'Jolly', 'Breezy', 'Bright', 'Lively', 'Vivid', 'Playful',
+  'Cozy', 'Dreamy', 'Curious', 'Bold', 'Brave', 'Daring', 'Eager', 'Spirited', 'Wandering', 'Roaming',
+  'Wild', 'Free', 'Radiant', 'Golden', 'Glowing', 'Sparkling', 'Gentle', 'Kind', 'Warm', 'Friendly',
+  'Charming', 'Witty', 'Clever', 'Swift', 'Nimble', 'Zesty', 'Zealous', 'Vibrant', 'Groovy', 'Funky',
+  'Chill', 'Cool', 'Epic', 'Mighty', 'Noble', 'Gallant', 'Jovial', 'Blissful', 'Joyful', 'Festive',
+] as const;
+
+/** Identity noun for auto-assigned anonymous display names — travel/
+ *  companion themed, matching the app's "events, together" framing: you're
+ *  a companion on the way to something fun, not just a random "Guest42". */
+const IDENTITIES = [
+  'Explorer', 'Voyager', 'Wanderer', 'Nomad', 'Traveler', 'Adventurer', 'Pathfinder', 'Rover', 'Rambler', 'Pilgrim',
+  'Drifter', 'Roamer', 'Navigator', 'Pioneer', 'Scout', 'Trailblazer', 'Globetrotter', 'Wayfarer', 'Backpacker', 'Vagabond',
+  'Sojourner', 'Trekker', 'Companion', 'Friend', 'Guest', 'Visitor', 'Newcomer', 'Regular', 'Local', 'Insider',
+  'Partygoer', 'Reveler', 'Celebrant', 'Attendee', 'Mingler', 'Socialite', 'Gatherer', 'Planner', 'Organizer', 'Host',
+  'Sidekick', 'Buddy', 'Pal', 'Mate', 'Ally', 'Confidant', 'Cheerleader', 'Supporter', 'Fan', 'Enthusiast',
+] as const;
 
 function pick<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)] as T;
+}
+
+function randomDisplayName(): string {
+  return `${pick(MOODS)} ${pick(IDENTITIES)}`;
 }
 
 /** Public-safe projection of a user. Exposed in creator/attendee lists — must
@@ -55,7 +76,7 @@ export async function createUser(input: CreateUserInput): Promise<UserDTO> {
 export async function createUserEntity(input: CreateUserInput = {}): Promise<User> {
   const user = await prisma.user.create({
     data: {
-      displayName: input.displayName ?? pick(FRIENDLY_NAMES),
+      displayName: input.displayName ?? randomDisplayName(),
       avatar: input.avatar ?? pick(AVATAR_COLORS),
     },
   });

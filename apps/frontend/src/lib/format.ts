@@ -36,6 +36,37 @@ export function relativeTime(iso: string): string {
   return formatDate(iso);
 }
 
+export interface EventTimeLabel {
+  text: string;
+  tone: 'past' | 'today' | 'soon' | 'later';
+}
+
+/** Day-granular "how far is this event" label for list cards. Buckets by the
+ *  viewer's LOCAL calendar day (like `DateBadge`/`formatDayMonth` do), not
+ *  UTC — this is a human-facing label, so it has to agree with the day the
+ *  viewer's own clock says it is. The backend's upcoming/past split still
+ *  buckets by UTC day server-side; the two can disagree for a few hours
+ *  around UTC midnight depending on the viewer's timezone, same as any
+ *  "Today"/"Tomorrow" label would versus a server-side cutoff. */
+export function eventTimeLabel(iso: string): EventTimeLabel {
+  const d = new Date(iso);
+  const eventDay = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const now = new Date();
+  const todayDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const diffDays = Math.round((eventDay - todayDay) / 86_400_000);
+
+  if (diffDays < 0) {
+    if (diffDays === -1) return { text: 'Yesterday', tone: 'past' };
+    if (diffDays >= -6) return { text: `${-diffDays}d ago`, tone: 'past' };
+    return { text: formatDate(iso), tone: 'past' };
+  }
+  if (diffDays === 0) return { text: 'Today', tone: 'today' };
+  if (diffDays === 1) return { text: 'Tomorrow', tone: 'soon' };
+  if (diffDays < 7) return { text: `In ${diffDays}d`, tone: 'soon' };
+  if (diffDays < 30) return { text: `In ${Math.round(diffDays / 7)}w`, tone: 'later' };
+  return { text: formatDate(iso), tone: 'later' };
+}
+
 export function timeOfDay(iso: string): string {
   return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(
     new Date(iso),
