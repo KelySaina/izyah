@@ -1,18 +1,48 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
-import { RouterLink, RouterView } from 'vue-router';
+import { computed, onMounted, ref, watch } from 'vue';
+import { RouterLink, RouterView, useRoute } from 'vue-router';
 import { useRegisterSW } from 'virtual:pwa-register/vue';
-import { Home as HomeIcon, CalendarDays, User as UserIcon, Plus, Moon, Sun, RefreshCw } from 'lucide-vue-next';
+import {
+  Home as HomeIcon,
+  CalendarDays,
+  User as UserIcon,
+  Plus,
+  RefreshCw,
+  MessageCircle,
+  Bell,
+} from 'lucide-vue-next';
 import Avatar from '@/components/Avatar.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import ChatSheet from '@/components/ChatSheet.vue';
+import NotificationsSheet from '@/components/NotificationsSheet.vue';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
+import { useChatStore } from '@/stores/chat';
+import { useEventsStore } from '@/stores/events';
+import { useNotificationsStore } from '@/stores/notifications';
 
 const identity = useIdentityStore();
 const ui = useUiStore();
+const chat = useChatStore();
+const events = useEventsStore();
+const notifications = useNotificationsStore();
+const route = useRoute();
+
+const chatOpen = ref(false);
+const notificationsOpen = ref(false);
+const onEventPage = computed(() => route.name === 'event');
+const currentEventId = computed(() => events.current?.id ?? null);
 
 // PWA update lifecycle.
 const { needRefresh, updateServiceWorker } = useRegisterSW();
+
+watch(
+  () => identity.ready && !!identity.id,
+  (canSubscribe) => {
+    if (canSubscribe) notifications.init();
+  },
+  { immediate: true },
+);
 
 onMounted(() => {
   window.addEventListener('beforeinstallprompt', (e) => {
@@ -47,12 +77,31 @@ onMounted(() => {
       </RouterLink>
       <div class="flex items-center gap-1.5">
         <button
-          class="grid h-9 w-9 place-items-center rounded-full text-fg-2 transition hover:bg-surface-2"
-          :aria-label="ui.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
-          @click="ui.toggleTheme()"
+          v-if="onEventPage"
+          class="relative grid h-9 w-9 place-items-center rounded-full text-fg-2 transition hover:bg-surface-2"
+          aria-label="Open chat"
+          @click="chatOpen = true"
         >
-          <Moon v-if="ui.theme === 'dark'" :size="18" />
-          <Sun v-else :size="18" />
+          <MessageCircle :size="18" />
+          <span
+            v-if="chat.unread > 0"
+            class="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand-500 px-1 text-[10px] font-bold leading-none text-ink-900"
+          >
+            {{ chat.unread > 9 ? '9+' : chat.unread }}
+          </span>
+        </button>
+        <button
+          class="relative grid h-9 w-9 place-items-center rounded-full text-fg-2 transition hover:bg-surface-2"
+          aria-label="Notifications"
+          @click="notificationsOpen = true"
+        >
+          <Bell :size="18" />
+          <span
+            v-if="notifications.unread > 0"
+            class="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand-500 px-1 text-[10px] font-bold leading-none text-ink-900"
+          >
+            {{ notifications.unread > 9 ? '9+' : notifications.unread }}
+          </span>
         </button>
         <RouterLink to="/profile" aria-label="Your profile" class="ml-0.5">
           <Avatar :name="identity.displayName" :avatar="identity.avatar" :size="32" />
@@ -139,6 +188,12 @@ onMounted(() => {
 
     <!-- App-wide confirm dialog (replaces window.confirm) -->
     <ConfirmDialog />
+
+    <!-- Chat / tasks / polls sheet for the event currently being viewed -->
+    <ChatSheet v-model="chatOpen" :event-id="currentEventId" />
+
+    <!-- Notifications sheet -->
+    <NotificationsSheet v-model="notificationsOpen" />
   </div>
 </template>
 

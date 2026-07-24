@@ -125,8 +125,10 @@ export const api = {
       request<MessageDTO>(`/events/${eventId}/messages`, { method: 'POST', body: { content } }),
   },
   media: {
-    list: (eventId: string) =>
-      request<{ media: MediaDTO[] }>(`/events/${eventId}/media`).then((r) => r.media),
+    list: (eventId: string, before?: string) =>
+      request<{ media: MediaDTO[] }>(`/events/${eventId}/media`, { query: { before } }).then(
+        (r) => r.media,
+      ),
     upload: (eventId: string, file: File) => {
       const fd = new FormData();
       fd.append('file', file);

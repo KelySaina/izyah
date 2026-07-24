@@ -21,7 +21,12 @@ export async function create(req: Request, res: Response) {
 
 /** POST /events/:eventId/tasks/:taskId/claim */
 export async function claim(req: Request, res: Response) {
-  const task = await claimTask(req.params.eventId!, req.params.taskId!, req.userId!);
+  const task = await claimTask(
+    req.params.eventId!,
+    req.params.taskId!,
+    req.userId!,
+    req.user!.displayName,
+  );
   res.json(task);
 }
 

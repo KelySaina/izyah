@@ -3,7 +3,12 @@ import { setRsvp, listAttendees } from './participant.service';
 
 /** PUT /events/:eventId/rsvp */
 export async function rsvp(req: Request, res: Response) {
-  const result = await setRsvp(req.params.eventId!, req.userId!, req.body.status);
+  const result = await setRsvp(
+    req.params.eventId!,
+    req.userId!,
+    req.user!.displayName,
+    req.body.status,
+  );
   res.json(result);
 }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Camera, Image as ImageIcon, Play } from 'lucide-vue-next';
 import { api, ApiError } from '@/services/api';
 import { pickPhoto } from '@/services/cameraService';
@@ -8,29 +8,61 @@ import EmptyState from '@/components/EmptyState.vue';
 import Lightbox from '@/components/Lightbox.vue';
 import type { MediaDTO } from '@/types';
 
+// Matches the backend's default page size (media.schemas.ts) — used only to
+// detect a short last page, not sent explicitly.
+const PAGE_SIZE = 24;
+
 const props = defineProps<{ eventId: string }>();
 
 const ui = useUiStore();
 
 const media = ref<MediaDTO[]>([]);
 const loading = ref(true);
+const loadingMore = ref(false);
+const hasMore = ref(true);
 const uploading = ref(false);
 /** Index of the media item open in the lightbox (null = closed). */
 const lightboxIndex = ref<number | null>(null);
+const sentinel = ref<HTMLDivElement | null>(null);
+let observer: IntersectionObserver | null = null;
 
 function errMsg(err: unknown): string {
   return err instanceof ApiError ? err.message : 'Something went wrong';
 }
 
+async function loadMore(): Promise<void> {
+  if (loadingMore.value || !hasMore.value) return;
+  loadingMore.value = true;
+  try {
+    const oldest = media.value.at(-1)?.createdAt;
+    const batch = await api.media.list(props.eventId, oldest);
+    if (batch.length < PAGE_SIZE) hasMore.value = false;
+    media.value.push(...batch);
+  } catch (err) {
+    ui.toast(errMsg(err), 'error');
+  } finally {
+    loadingMore.value = false;
+  }
+}
+
 onMounted(async () => {
   try {
     media.value = await api.media.list(props.eventId);
+    if (media.value.length < PAGE_SIZE) hasMore.value = false;
   } catch (err) {
     ui.toast(errMsg(err), 'error');
   } finally {
     loading.value = false;
   }
+
+  await nextTick();
+  observer = new IntersectionObserver(([entry]) => {
+    if (entry?.isIntersecting) void loadMore();
+  });
+  if (sentinel.value) observer.observe(sentinel.value);
 });
+
+onBeforeUnmount(() => observer?.disconnect());
 
 async function add(): Promise<void> {
   if (uploading.value) return;
@@ -113,6 +145,10 @@ async function add(): Promise<void> {
         </span>
       </button>
     </div>
+
+    <!-- Infinite-scroll trigger — loads the next batch when it enters view. -->
+    <div v-if="hasMore && !loading" ref="sentinel" class="h-1" />
+    <p v-if="loadingMore" class="text-center text-xs text-fg-3">Loading more…</p>
 
     <Lightbox v-model="lightboxIndex" :items="media" />
   </section>

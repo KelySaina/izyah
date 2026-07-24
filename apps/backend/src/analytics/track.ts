@@ -13,6 +13,7 @@ export type AnalyticsEvent =
   | 'rsvp_going'
   | 'rsvp_maybe'
   | 'rsvp_not_going'
+  | 'rsvp_waitlisted'
   | 'attendance_marked'
   | 'user_created'
   | 'account_claimed'

@@ -2,6 +2,7 @@ import type { Task, User } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { ApiError } from '../../utils/http';
 import { toUserDTO, type UserDTO } from '../users/user.service';
+import { enqueueNotification } from '../../queue';
 import type { CreateTaskInput, UpdateTaskInput } from './task.schemas';
 
 export interface TaskDTO {
@@ -64,13 +65,33 @@ export async function claimTask(
   eventId: string,
   taskId: string,
   userId: string,
+  displayName: string,
 ): Promise<TaskDTO> {
-  await findTaskInEvent(eventId, taskId);
+  const existing = await findTaskInEvent(eventId, taskId);
   const task = await prisma.task.update({
     where: { id: taskId },
     data: { assignedUserId: userId, status: 'CLAIMED' },
     include: { assignedUser: true },
   });
+
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { slug: true, title: true, creatorId: true },
+  });
+  if (event && event.creatorId !== userId) {
+    void enqueueNotification({
+      userId: event.creatorId,
+      type: 'task_claimed',
+      payload: {
+        eventId,
+        eventSlug: event.slug,
+        eventTitle: event.title,
+        taskTitle: existing.title,
+        displayName,
+      },
+    }).catch(() => undefined);
+  }
+
   return toTaskDTO(task);
 }
 

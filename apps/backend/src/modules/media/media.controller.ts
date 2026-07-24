@@ -4,7 +4,7 @@ import { listMedia, uploadMedia } from './media.service';
 
 /** GET /events/:eventId/media */
 export async function list(req: Request, res: Response) {
-  const media = await listMedia(req.params.eventId!);
+  const media = await listMedia(req.params.eventId!, req.query as never);
   res.json({ media });
 }
 

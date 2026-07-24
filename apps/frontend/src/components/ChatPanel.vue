@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { MessageCircle, Send } from 'lucide-vue-next';
 import OnlineBadge from '@/components/OnlineBadge.vue';
 import MessageBubble from '@/components/MessageBubble.vue';
@@ -7,7 +7,12 @@ import TypingIndicator from '@/components/TypingIndicator.vue';
 import { useChatStore } from '@/stores/chat';
 import { useIdentityStore } from '@/stores/identity';
 
-const props = defineProps<{ eventId: string }>();
+/**
+ * Presentational — the parent view owns the `chat.open()`/`close()` lifecycle
+ * (tied to viewing the event, not to this component's mount) so presence and
+ * unread tracking keep working while the chat sheet is closed.
+ */
+withDefaults(defineProps<{ showHeader?: boolean }>(), { showHeader: true });
 
 const chat = useChatStore();
 const identity = useIdentityStore();
@@ -15,19 +20,37 @@ const identity = useIdentityStore();
 const draft = ref('');
 const listEl = ref<HTMLDivElement | null>(null);
 let typingTimer: ReturnType<typeof setTimeout> | undefined;
+// Set while prepending older messages, so the length watcher below doesn't
+// yank the scroll position back down to the bottom.
+let loadingOlderScroll = false;
 
 function scrollToBottom(): void {
   const el = listEl.value;
   if (el) el.scrollTop = el.scrollHeight;
 }
 
-// Auto-scroll to the newest message when the list grows.
+// Auto-scroll to the newest message when the list grows (new/sent message).
 watch(
   () => chat.messages.length,
   () => {
+    if (loadingOlderScroll) return;
     void nextTick(scrollToBottom);
   },
 );
+
+async function onLoadOlder(): Promise<void> {
+  const el = listEl.value;
+  const prevScrollHeight = el?.scrollHeight ?? 0;
+  const prevScrollTop = el?.scrollTop ?? 0;
+  loadingOlderScroll = true;
+  try {
+    await chat.loadOlder();
+    await nextTick();
+    if (el) el.scrollTop = el.scrollHeight - prevScrollHeight + prevScrollTop;
+  } finally {
+    loadingOlderScroll = false;
+  }
+}
 
 function onInput(): void {
   chat.setTyping(true);
@@ -51,21 +74,15 @@ function onKeydown(e: KeyboardEvent): void {
   }
 }
 
-onMounted(async () => {
-  await chat.open(props.eventId);
-  void nextTick(scrollToBottom);
-});
+void nextTick(scrollToBottom);
 
-onBeforeUnmount(() => {
-  clearTimeout(typingTimer);
-  chat.close();
-});
+onBeforeUnmount(() => clearTimeout(typingTimer));
 </script>
 
 <template>
   <div class="card flex h-[70vh] flex-col overflow-hidden">
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-line/10 px-3 py-2">
+    <div v-if="showHeader" class="flex items-center justify-between border-b border-line/10 px-3 py-2">
       <h3 class="flex items-center gap-1.5 text-sm font-semibold text-fg">
         <MessageCircle :size="16" class="text-accent" /> Chat
       </h3>
@@ -86,6 +103,17 @@ onBeforeUnmount(() => {
         class="grid h-full place-items-center px-6 text-center text-sm text-fg-3"
       >
         <span>No messages yet — say hi 👋</span>
+      </div>
+
+      <div v-if="chat.hasMore && chat.messages.length > 0" class="pb-1 text-center">
+        <button
+          type="button"
+          class="text-xs font-semibold text-fg-2 hover:text-fg disabled:opacity-50"
+          :disabled="chat.loadingOlder"
+          @click="onLoadOlder"
+        >
+          {{ chat.loadingOlder ? 'Loading…' : 'Load older messages' }}
+        </button>
       </div>
 
       <MessageBubble

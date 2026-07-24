@@ -33,6 +33,7 @@ const initial = computed<Partial<CreateEventInput>>(() =>
         latitude: event.value.latitude ?? undefined,
         longitude: event.value.longitude ?? undefined,
         coverImage: event.value.coverImage ?? undefined,
+        capacity: event.value.capacity,
         visibility: event.value.visibility,
       }
     : {},

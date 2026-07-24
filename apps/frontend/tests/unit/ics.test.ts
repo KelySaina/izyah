@@ -13,11 +13,12 @@ const event: EventDTO = {
   latitude: null,
   longitude: null,
   coverImage: null,
+  capacity: null,
   slug: 'rooftop-party',
   visibility: 'PUBLIC',
   creatorId: '11111111-1111-1111-1111-111111111111',
   createdAt: '2030-01-01T00:00:00.000Z',
-  counts: { going: 1, maybe: 0, notGoing: 0, total: 1 },
+  counts: { going: 1, maybe: 0, notGoing: 0, waitlist: 0, total: 1 },
 };
 
 describe('calendar export', () => {

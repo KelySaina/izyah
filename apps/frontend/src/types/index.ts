@@ -1,7 +1,7 @@
 // Client-side mirror of the backend DTOs. Over the wire, Prisma `Date` values
 // are serialised to ISO strings, so date fields are typed as `string` here.
 
-export type RsvpStatus = 'GOING' | 'MAYBE' | 'NOT_GOING';
+export type RsvpStatus = 'GOING' | 'MAYBE' | 'NOT_GOING' | 'WAITLIST';
 export type ParticipantRole = 'HOST' | 'GUEST';
 export type EventVisibility = 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
 export type MediaType = 'IMAGE' | 'VIDEO';
@@ -27,6 +27,7 @@ export interface RsvpCounts {
   going: number;
   maybe: number;
   notGoing: number;
+  waitlist: number;
   total: number;
 }
 
@@ -41,6 +42,7 @@ export interface EventDTO {
   latitude: number | null;
   longitude: number | null;
   coverImage: string | null;
+  capacity: number | null;
   slug: string;
   visibility: EventVisibility;
   creatorId: string;
@@ -122,6 +124,7 @@ export interface CreateEventInput {
   latitude?: number;
   longitude?: number;
   coverImage?: string;
+  capacity?: number | null;
   visibility?: EventVisibility;
 }
 export type UpdateEventInput = Partial<CreateEventInput>;

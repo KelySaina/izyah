@@ -5,7 +5,7 @@ import RsvpButtons from '@/components/RsvpButtons.vue';
 describe('RsvpButtons', () => {
   it('renders three options and highlights the active status', () => {
     const wrapper = mount(RsvpButtons, {
-      props: { status: 'GOING', counts: { going: 2, maybe: 1, notGoing: 0, total: 3 } },
+      props: { status: 'GOING', counts: { going: 2, maybe: 1, notGoing: 0, waitlist: 0, total: 3 } },
     });
     const buttons = wrapper.findAll('button');
     expect(buttons).toHaveLength(3);

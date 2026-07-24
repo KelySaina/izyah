@@ -12,6 +12,7 @@ export interface RsvpCounts {
   going: number;
   maybe: number;
   notGoing: number;
+  waitlist: number;
   total: number;
 }
 
@@ -26,6 +27,7 @@ export interface EventDTO {
   latitude: number | null;
   longitude: number | null;
   coverImage: string | null;
+  capacity: number | null;
   slug: string;
   visibility: Event['visibility'];
   creatorId: string;
@@ -50,6 +52,7 @@ function toEventDTO(event: EventWithCreator, counts: RsvpCounts): EventDTO {
     latitude: event.latitude,
     longitude: event.longitude,
     coverImage: event.coverImage,
+    capacity: event.capacity,
     slug: event.slug,
     visibility: event.visibility,
     creatorId: event.creatorId,
@@ -65,13 +68,14 @@ export async function computeCounts(eventId: string): Promise<RsvpCounts> {
     where: { eventId },
     _count: { _all: true },
   });
-  const counts: RsvpCounts = { going: 0, maybe: 0, notGoing: 0, total: 0 };
+  const counts: RsvpCounts = { going: 0, maybe: 0, notGoing: 0, waitlist: 0, total: 0 };
   for (const row of grouped) {
     const n = row._count._all;
     counts.total += n;
     if (row.status === 'GOING') counts.going = n;
     else if (row.status === 'MAYBE') counts.maybe = n;
     else if (row.status === 'NOT_GOING') counts.notGoing = n;
+    else if (row.status === 'WAITLIST') counts.waitlist = n;
   }
   return counts;
 }
@@ -89,6 +93,7 @@ export async function createEvent(creatorId: string, input: CreateEventInput): P
         latitude: input.latitude ?? null,
         longitude: input.longitude ?? null,
         coverImage: input.coverImage ?? null,
+        capacity: input.capacity ?? null,
         visibility: input.visibility ?? 'PUBLIC',
         creatorId,
       },
@@ -102,7 +107,7 @@ export async function createEvent(creatorId: string, input: CreateEventInput): P
   });
 
   await track('event_created', { eventId: event.id });
-  return toEventDTO(event, { going: 1, maybe: 0, notGoing: 0, total: 1 });
+  return toEventDTO(event, { going: 1, maybe: 0, notGoing: 0, waitlist: 0, total: 1 });
 }
 
 export async function listEvents(userId: string, query: ListEventsQuery): Promise<EventDTO[]> {

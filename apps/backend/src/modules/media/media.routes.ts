@@ -4,7 +4,7 @@ import { asyncHandler } from '../../utils/http';
 import { validate } from '../../middleware/validate';
 import { requireIdentity } from '../../middleware/identity';
 import { writeLimiter } from '../../middleware/rateLimit';
-import { eventParamsSchema } from './media.schemas';
+import { eventParamsSchema, listMediaQuerySchema } from './media.schemas';
 import { list, upload as handleUpload } from './media.controller';
 
 export const mediaRouter = Router();
@@ -22,7 +22,7 @@ const upload = multer({
 mediaRouter.get(
   '/events/:eventId/media',
   requireIdentity,
-  validate({ params: eventParamsSchema }),
+  validate({ params: eventParamsSchema, query: listMediaQuerySchema }),
   asyncHandler(list),
 );
 

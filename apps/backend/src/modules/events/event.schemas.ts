@@ -9,6 +9,8 @@ const time = z
 const url = z.string().url().max(1024).optional();
 const latitude = z.number().min(-90).max(90).optional();
 const longitude = z.number().min(-180).max(180).optional();
+// Nullable so a creator can explicitly clear a previously-set capacity.
+const capacity = z.coerce.number().int().min(1).max(100000).nullable().optional();
 
 export const createEventSchema = z.object({
   title: sanitizedText(120),
@@ -20,6 +22,7 @@ export const createEventSchema = z.object({
   latitude,
   longitude,
   coverImage: url,
+  capacity,
   visibility: z.enum(['PUBLIC', 'UNLISTED', 'PRIVATE']).optional(),
 });
 
@@ -34,6 +37,7 @@ export const updateEventSchema = z
     latitude,
     longitude,
     coverImage: url,
+    capacity,
     visibility: z.enum(['PUBLIC', 'UNLISTED', 'PRIVATE']).optional(),
   })
   .refine((o) => Object.keys(o).length > 0, { message: 'nothing to update' });

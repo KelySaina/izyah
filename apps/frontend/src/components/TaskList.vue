@@ -13,10 +13,15 @@ const props = defineProps<{ eventId: string }>();
 const identity = useIdentityStore();
 const ui = useUiStore();
 
+// Potluck-style quick-add — one tap creates a common logistics item instead
+// of typing it out. Purely a UX shortcut; these are ordinary tasks.
+const QUICK_ITEMS = ['🥤 Drinks', '🍰 Dessert', '🍞 Snacks', '🪑 Chairs', '🎵 Music', '🧊 Ice'];
+
 const tasks = ref<TaskDTO[]>([]);
 const loading = ref(true);
 const newTitle = ref('');
 const adding = ref(false);
+const quickAdding = ref<string | null>(null);
 
 function errMsg(err: unknown): string {
   return err instanceof ApiError ? err.message : 'Something went wrong';
@@ -52,6 +57,22 @@ async function addTask(): Promise<void> {
   }
 }
 
+async function quickAdd(title: string): Promise<void> {
+  if (quickAdding.value) return;
+  if (tasks.value.some((t) => t.title === title)) {
+    ui.toast('Already added', 'info');
+    return;
+  }
+  quickAdding.value = title;
+  try {
+    tasks.value.push(await api.tasks.create(props.eventId, title));
+  } catch (err) {
+    ui.toast(errMsg(err), 'error');
+  } finally {
+    quickAdding.value = null;
+  }
+}
+
 async function claim(task: TaskDTO): Promise<void> {
   try {
     replaceTask(await api.tasks.claim(props.eventId, task.id));
@@ -82,6 +103,19 @@ async function toggleDone(task: TaskDTO): Promise<void> {
 
 <template>
   <section class="space-y-3">
+    <div class="no-scrollbar flex gap-1.5 overflow-x-auto">
+      <button
+        v-for="item in QUICK_ITEMS"
+        :key="item"
+        type="button"
+        class="shrink-0 whitespace-nowrap rounded-full bg-surface-2 px-3 py-1.5 text-xs font-semibold text-fg-2 transition active:scale-95 disabled:opacity-50"
+        :disabled="quickAdding === item"
+        @click="quickAdd(item)"
+      >
+        {{ item }}
+      </button>
+    </div>
+
     <form class="flex gap-2" @submit.prevent="addTask">
       <input
         v-model="newTitle"

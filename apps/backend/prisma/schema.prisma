@@ -64,6 +64,9 @@ model Event {
   latitude    Float?
   longitude   Float?
   coverImage  String?
+  // Max GOING attendees. Null = unlimited. Once full, new GOING RSVPs land in
+  // WAITLIST and are auto-promoted (oldest first) when a spot frees up.
+  capacity    Int?
   // Public share slug -> izyah.app/event/{slug}
   slug        String   @unique @default(cuid())
   visibility  EventVisibility @default(PUBLIC)
@@ -117,6 +120,9 @@ enum RsvpStatus {
   GOING
   MAYBE
   NOT_GOING
+  // Server-assigned when GOING is requested but the event is at capacity.
+  // Never a client-chosen value — see participant.service.ts#setRsvp.
+  WAITLIST
 }
 
 enum ParticipantRole {

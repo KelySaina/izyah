@@ -45,6 +45,7 @@ const form = reactive({
   latitude: props.initial?.latitude ?? null,
   longitude: props.initial?.longitude ?? null,
   coverImage: props.initial?.coverImage ?? '',
+  capacity: props.initial?.capacity != null ? String(props.initial.capacity) : '',
   visibility: initialVisibility as EventVisibility,
 });
 
@@ -68,6 +69,11 @@ function onSubmit(): void {
     ui.toast('A title and a date are required', 'error');
     return;
   }
+  const capacityTrimmed = form.capacity.trim();
+  if (capacityTrimmed && (!/^\d+$/.test(capacityTrimmed) || Number(capacityTrimmed) < 1)) {
+    ui.toast('Capacity must be a positive number', 'error');
+    return;
+  }
   emit('submit', {
     title: form.title.trim(),
     description: clean(form.description),
@@ -78,6 +84,7 @@ function onSubmit(): void {
     latitude: form.latitude ?? undefined,
     longitude: form.longitude ?? undefined,
     coverImage: clean(form.coverImage),
+    capacity: capacityTrimmed ? Number(capacityTrimmed) : null,
     visibility: form.visibility,
   });
 }
@@ -125,6 +132,22 @@ function onSubmit(): void {
       :longitude="form.longitude"
       @update="onLocationUpdate"
     />
+
+    <div>
+      <label class="label" for="ev-capacity">Capacity</label>
+      <input
+        id="ev-capacity"
+        v-model="form.capacity"
+        type="number"
+        min="1"
+        inputmode="numeric"
+        class="input"
+        placeholder="Unlimited"
+      />
+      <p class="mt-1 text-xs text-fg-3">
+        Leave blank for no limit. Once full, new RSVPs join a waitlist.
+      </p>
+    </div>
 
     <div>
       <span class="label">Visibility</span>

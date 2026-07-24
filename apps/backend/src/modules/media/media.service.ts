@@ -6,6 +6,7 @@ import { toUserDTO, type UserDTO } from '../users/user.service';
 import { track } from '../../analytics/track';
 import { minio, BUCKETS, publicUrl } from '../../lib/minio';
 import { enqueueMediaProcessing } from '../../queue';
+import type { ListMediaQuery } from './media.schemas';
 
 export interface MediaDTO {
   id: string;
@@ -79,12 +80,13 @@ export async function uploadMedia(params: UploadMediaParams): Promise<MediaDTO> 
   return toMediaDTO(media);
 }
 
-export async function listMedia(eventId: string): Promise<MediaDTO[]> {
+export async function listMedia(eventId: string, query: ListMediaQuery): Promise<MediaDTO[]> {
   await assertEventExists(eventId);
   const rows = await prisma.media.findMany({
-    where: { eventId },
+    where: { eventId, ...(query.before ? { createdAt: { lt: query.before } } : {}) },
     include: { user: true },
     orderBy: { createdAt: 'desc' },
+    take: query.limit,
   });
   return rows.map(toMediaDTO);
 }

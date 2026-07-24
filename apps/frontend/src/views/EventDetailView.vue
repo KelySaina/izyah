@@ -1,31 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, type Component } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
-import {
-  Clock,
-  MapPin,
-  Pencil,
-  Compass,
-  MessageCircle,
-  ListChecks,
-  BarChart3,
-  Image as ImageIcon,
-} from 'lucide-vue-next';
+import { Clock, MapPin, Pencil, Compass, Image as ImageIcon, PartyPopper } from 'lucide-vue-next';
 import Avatar from '@/components/Avatar.vue';
 import DateBadge from '@/components/DateBadge.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import RsvpButtons from '@/components/RsvpButtons.vue';
 import AttendeeList from '@/components/AttendeeList.vue';
 import ShareSheet from '@/components/ShareSheet.vue';
-import ChatPanel from '@/components/ChatPanel.vue';
-import TaskList from '@/components/TaskList.vue';
-import PollList from '@/components/PollList.vue';
 import MediaGallery from '@/components/MediaGallery.vue';
 import EventDetailSkeleton from '@/components/EventDetailSkeleton.vue';
 import Lightbox from '@/components/Lightbox.vue';
 import EventMap from '@/components/EventMap.vue';
 import { useEventsStore } from '@/stores/events';
 import { useIdentityStore } from '@/stores/identity';
+import { useChatStore } from '@/stores/chat';
 import { useUiStore } from '@/stores/ui';
 import { ApiError } from '@/services/api';
 import { formatDate, formatTimeRange } from '@/lib/format';
@@ -35,23 +24,23 @@ const props = defineProps<{ idOrSlug: string }>();
 
 const events = useEventsStore();
 const identity = useIdentityStore();
+const chat = useChatStore();
 const ui = useUiStore();
 
 const loading = ref(true);
 const notFound = ref(false);
 const coverLightbox = ref<number | null>(null);
 
-type Tab = 'chat' | 'tasks' | 'polls' | 'media';
-const tab = ref<Tab>('chat');
-const tabs: { key: Tab; label: string; icon: Component }[] = [
-  { key: 'chat', label: 'Chat', icon: MessageCircle },
-  { key: 'tasks', label: 'Tasks', icon: ListChecks },
-  { key: 'polls', label: 'Polls', icon: BarChart3 },
-  { key: 'media', label: 'Media', icon: ImageIcon },
-];
+// Chat (and its presence/unread tracking) stays joined for as long as this
+// event's page is open — the Chat/Tasks/Polls sheet itself lives in App.vue,
+// opened from the header icon.
+onBeforeUnmount(() => chat.close());
 
 const event = computed(() => events.current);
 const isCreator = computed(() => !!event.value && identity.id === event.value.creatorId);
+// Day-granular: an event "happened" once its date has passed, regardless of
+// its start/end time. Matches the backend's own upcoming/past bucketing.
+const isPast = computed(() => !!event.value && new Date(event.value.date) < new Date());
 
 async function load(idOrSlug: string): Promise<void> {
   loading.value = true;
@@ -59,6 +48,7 @@ async function load(idOrSlug: string): Promise<void> {
   try {
     const e = await events.fetchEvent(idOrSlug);
     await events.fetchAttendees(e.id);
+    await chat.open(e.id);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound.value = true;
     else ui.toast(err instanceof ApiError ? err.message : 'Something went wrong', 'error');
@@ -77,8 +67,11 @@ watch(
 async function onRsvp(status: RsvpStatus): Promise<void> {
   if (!event.value) return;
   try {
-    await events.setRsvp(event.value.id, status);
-    ui.toast("You're on the list", 'success');
+    const effective = await events.setRsvp(event.value.id, status);
+    ui.toast(
+      effective === 'WAITLIST' ? "You're on the waitlist" : "You're on the list",
+      'success',
+    );
   } catch (err) {
     ui.toast(err instanceof ApiError ? err.message : 'Something went wrong', 'error');
   }
@@ -114,9 +107,17 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
       <div class="flex items-start gap-3">
         <DateBadge :date="event.date" />
         <div class="min-w-0 flex-1">
-          <h1 class="font-display text-2xl font-bold leading-tight tracking-tight">
-            {{ event.title }}
-          </h1>
+          <div class="flex items-center gap-2">
+            <h1 class="font-display text-2xl font-bold leading-tight tracking-tight">
+              {{ event.title }}
+            </h1>
+            <span
+              v-if="isPast"
+              class="flex shrink-0 items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fg-2"
+            >
+              <PartyPopper :size="11" /> Recap
+            </span>
+          </div>
           <p class="mt-1 text-sm text-fg-2">{{ formatDate(event.date) }}</p>
           <p v-if="event.startTime" class="mt-0.5 flex items-center gap-1.5 text-sm text-fg-2">
             <Clock :size="14" class="text-fg-3" />
@@ -154,8 +155,17 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
       :label="event.location ?? undefined"
     />
 
-    <!-- RSVP -->
-    <RsvpButtons :status="event.viewerStatus" :counts="event.counts" @change="onRsvp" />
+    <!-- RSVP (live) vs. recap summary (past) -->
+    <p v-if="isPast" class="text-center text-sm text-fg-2">
+      {{ event.counts.going }} {{ event.counts.going === 1 ? 'person' : 'people' }} went to this one 🎉
+    </p>
+    <RsvpButtons
+      v-else
+      :status="event.viewerStatus"
+      :counts="event.counts"
+      :capacity="event.capacity"
+      @change="onRsvp"
+    />
 
     <!-- Attendees -->
     <section class="card space-y-3 p-4">
@@ -170,26 +180,13 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
     <!-- Share / calendar -->
     <ShareSheet :event="event" />
 
-    <!-- Tabs -->
-    <div>
-      <div class="no-scrollbar mb-3 flex gap-2 overflow-x-auto">
-        <button
-          v-for="t in tabs"
-          :key="t.key"
-          type="button"
-          class="flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-semibold transition"
-          :class="tab === t.key ? 'bg-brand-500 text-ink-900' : 'bg-surface text-fg-2'"
-          @click="tab = t.key"
-        >
-          <component :is="t.icon" :size="15" :stroke-width="2.25" /> {{ t.label }}
-        </button>
-      </div>
-
-      <ChatPanel v-if="tab === 'chat'" :key="`chat-${event.id}`" :event-id="event.id" />
-      <TaskList v-else-if="tab === 'tasks'" :key="`tasks-${event.id}`" :event-id="event.id" />
-      <PollList v-else-if="tab === 'polls'" :key="`polls-${event.id}`" :event-id="event.id" />
-      <MediaGallery v-else :key="`media-${event.id}`" :event-id="event.id" />
-    </div>
+    <!-- Media -->
+    <section class="card space-y-3 p-4" :class="isPast ? 'ring-1 ring-brand-500/30' : ''">
+      <h2 class="flex items-center gap-1.5 text-sm font-bold text-fg">
+        <ImageIcon :size="15" class="text-accent" /> {{ isPast ? 'Recap photos & videos' : 'Media' }}
+      </h2>
+      <MediaGallery :key="`media-${event.id}`" :event-id="event.id" />
+    </section>
 
     <Lightbox
       v-model="coverLightbox"

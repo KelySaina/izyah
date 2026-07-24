@@ -49,6 +49,8 @@ export async function initSocket(server: HttpServer): Promise<SocketServer> {
 
   io.on('connection', (socket) => {
     logger.debug({ sid: socket.id, userId: socket.data.userId }, 'socket connected');
+    // Personal room for server-pushed notifications (see notification.worker.ts).
+    void socket.join(`user:${socket.data.userId}`);
     registerPresence(io!, socket);
     registerChatGateway(io!, socket);
   });

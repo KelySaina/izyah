@@ -10,7 +10,7 @@ import type {
   UpdateEventInput,
 } from '@/types';
 
-const EMPTY_COUNTS: RsvpCounts = { going: 0, maybe: 0, notGoing: 0, total: 0 };
+const EMPTY_COUNTS: RsvpCounts = { going: 0, maybe: 0, notGoing: 0, waitlist: 0, total: 0 };
 
 export const useEventsStore = defineStore('events', () => {
   const events = ref<EventDTO[]>([]);
@@ -78,12 +78,13 @@ export const useEventsStore = defineStore('events', () => {
     if (current.value?.id === id) current.value = null;
   }
 
-  async function setRsvp(eventId: string, status: RsvpStatus): Promise<void> {
+  async function setRsvp(eventId: string, status: RsvpStatus): Promise<RsvpStatus> {
     const res = await api.participants.rsvp(eventId, status);
     counts.value = res.counts;
     if (current.value?.id === eventId) {
-      current.value = { ...current.value, viewerStatus: status, counts: res.counts };
+      current.value = { ...current.value, viewerStatus: res.status, counts: res.counts };
     }
+    return res.status;
   }
 
   /** Live updates pushed over the socket. */
