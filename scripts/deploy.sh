@@ -25,11 +25,32 @@ die()  { printf '\n\033[31m==> %s\033[0m\n' "$*" >&2; exit 1; }
 # Read a KEY=value from the (gitignored) .env on the box.
 read_env() { grep -E "^$1=" .env | head -n1 | cut -d= -f2- || true; }
 
+# Informational only: flag keys .env.example knows about that this box's
+# .env has never declared — usually a feature added after the box's .env
+# was set up (e.g. Web Push's VAPID_*). docker compose already treats an
+# undeclared var as blank, so nothing breaks; this just stops that from
+# happening silently. We never write to .env — .env.example mixes safe-blank
+# optional keys with dev-only defaults (MINIO_ROOT_PASSWORD etc.) that must
+# never be auto-copied into production.
+warn_new_env_keys() {
+  [ -f .env.example ] || return 0
+  local key missing=()
+  while IFS='=' read -r key _; do
+    [[ "$key" =~ ^[A-Z_][A-Z0-9_]*$ ]] || continue
+    grep -q "^${key}=" .env || missing+=("$key")
+  done < .env.example
+  if [ "${#missing[@]}" -gt 0 ]; then
+    log "New in .env.example but not in .env (deploying with them blank/disabled):"
+    printf '    %s\n' "${missing[@]}"
+  fi
+}
+
 # Preflight: catch config that would crash the backend at boot BEFORE we
 # recreate containers, so it fails in 1s with a clear reason instead of a
 # 2-minute health-timeout + rollback.
 preflight() {
   [ -f .env ] || die ".env not found in $(pwd) — cannot deploy."
+  warn_new_env_keys
   local node_env session
   node_env="$(read_env NODE_ENV)"
   session="$(read_env SESSION_SECRET)"

@@ -166,6 +166,11 @@ export const api = {
     list: () => request<{ notifications: NotificationDTO[]; unread: number }>('/notifications'),
     read: (id: string) => request<NotificationDTO>(`/notifications/${id}/read`, { method: 'POST' }),
     readAll: () => request<{ updated: number }>('/notifications/read-all', { method: 'POST' }),
+    vapidPublicKey: () => request<{ key: string | null }>('/notifications/push/vapid-public-key'),
+    subscribePush: (sub: PushSubscriptionJSON) =>
+      request<void>('/notifications/push/subscribe', { method: 'POST', body: sub }),
+    unsubscribePush: (endpoint: string) =>
+      request<void>('/notifications/push/unsubscribe', { method: 'POST', body: { endpoint } }),
   },
   uploads: {
     image: (kind: 'cover' | 'avatar', file: File) => {

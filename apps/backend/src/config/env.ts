@@ -49,6 +49,13 @@ const schema = z.object({
   OIDC_AUDIENCE: emptyToUndef(z.string().optional()),
   OIDC_CLIENT_ID: emptyToUndef(z.string().optional()),
 
+  // --- Web Push — optional until VAPID keys are provisioned -----------------
+  // Generate a pair with `npx web-push generate-vapid-keys`. When unset, push
+  // delivery is silently skipped (in-app/socket notifications still work).
+  VAPID_PUBLIC_KEY: emptyToUndef(z.string().optional()),
+  VAPID_PRIVATE_KEY: emptyToUndef(z.string().optional()),
+  VAPID_SUBJECT: z.string().default('mailto:support@izyah.app'),
+
   SEED_ON_START: envBool(false),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().default(120),
@@ -83,6 +90,8 @@ export const isTest = env.NODE_ENV === 'test';
 
 /** Account-linking is available only once an OIDC issuer is configured. */
 export const oidcEnabled = Boolean(env.OIDC_ISSUER);
+/** Web Push delivery is available only once a VAPID key pair is configured. */
+export const pushEnabled = Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY);
 /** Explicit JWKS override. When unset, M2 discovers it from the issuer's
  *  `/.well-known/openid-configuration` rather than guessing the path. */
 export const oidcJwksUri = env.OIDC_JWKS_URI;

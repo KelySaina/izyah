@@ -33,6 +33,9 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         navigateFallback: '/index.html',
+        // Web Push `push` / `notificationclick` handlers — authored separately
+        // since generateSW doesn't let us touch the generated SW file directly.
+        importScripts: ['push-sw.js'],
         runtimeCaching: [
           {
             // Cache-first for uploaded media (immutable object URLs).

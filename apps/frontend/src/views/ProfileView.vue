@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { Check, Download, Moon, Sun, ImagePlus, Camera, ShieldCheck, LogIn, LogOut } from 'lucide-vue-next';
+import { computed, onMounted, ref, watch } from 'vue';
+import { Check, Download, Moon, Sun, ImagePlus, Camera, ShieldCheck, LogIn, LogOut, Bell, BellOff } from 'lucide-vue-next';
 import { useImageUpload } from '@/composables/useImageUpload';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
@@ -8,6 +8,13 @@ import { ApiError } from '@/services/api';
 import { isColorAvatar } from '@/lib/format';
 import Avatar from '@/components/Avatar.vue';
 import Lightbox from '@/components/Lightbox.vue';
+import {
+  isPushSupported,
+  getPushSubscription,
+  requestPermission,
+  subscribeToPush,
+  unsubscribeFromPush,
+} from '@/services/notificationService';
 
 const identity = useIdentityStore();
 const ui = useUiStore();
@@ -101,6 +108,49 @@ async function signOut(): Promise<void> {
     ui.toast('Signed out', 'success');
   } catch (err) {
     ui.toast(err instanceof ApiError ? err.message : 'Something went wrong', 'error');
+  }
+}
+
+// Push notifications ("off-app" alerts for RSVPs, waitlist, tasks…).
+const pushSupported = isPushSupported();
+const pushOn = ref(false);
+const pushBusy = ref(false);
+
+onMounted(async () => {
+  if (!pushSupported) return;
+  pushOn.value = !!(await getPushSubscription().catch(() => null));
+});
+
+async function togglePush(): Promise<void> {
+  if (pushBusy.value) return;
+  pushBusy.value = true;
+  try {
+    if (pushOn.value) {
+      await unsubscribeFromPush();
+      pushOn.value = false;
+      ui.toast('Notifications turned off', 'info');
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      ui.toast('Notifications are blocked — enable them in your browser settings', 'error');
+      return;
+    }
+    const granted = await requestPermission();
+    if (!granted) {
+      ui.toast('Notifications permission denied', 'error');
+      return;
+    }
+    const sub = await subscribeToPush();
+    if (!sub) {
+      ui.toast('Notifications are unavailable right now', 'error');
+      return;
+    }
+    pushOn.value = true;
+    ui.toast("You're all set — notifications enabled", 'success');
+  } catch (err) {
+    ui.toast(err instanceof ApiError ? err.message : 'Something went wrong', 'error');
+  } finally {
+    pushBusy.value = false;
   }
 }
 </script>
@@ -216,6 +266,17 @@ async function signOut(): Promise<void> {
         <Moon v-if="ui.theme === 'dark'" :size="18" />
         <Sun v-else :size="18" />
         {{ ui.theme === 'dark' ? 'Dark theme' : 'Light theme' }}
+      </button>
+      <button
+        v-if="pushSupported"
+        type="button"
+        class="btn-ghost w-full"
+        :disabled="pushBusy"
+        @click="togglePush"
+      >
+        <BellOff v-if="pushOn" :size="18" />
+        <Bell v-else :size="18" />
+        {{ pushOn ? 'Turn off notifications' : 'Enable notifications' }}
       </button>
     </section>
 

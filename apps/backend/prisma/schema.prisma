@@ -41,6 +41,7 @@ model User {
   assignedTasks Task[]
   pollVotes     PollVote[]
   notifications Notification[]
+  pushSubscriptions PushSubscription[]
 
   @@index([lastSeenAt])
   @@map("users")
@@ -271,4 +272,20 @@ model Notification {
 
   @@index([userId, read])
   @@map("notifications")
+}
+
+// Web Push subscriptions (one per browser/device). A user accumulates one of
+// these per device that opts in; endpoint is the dedupe key browsers give us.
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
