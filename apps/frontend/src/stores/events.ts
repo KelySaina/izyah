@@ -3,8 +3,10 @@ import { ref } from 'vue';
 import { api } from '@/services/api';
 import type {
   AttendeeDTO,
+  CheckinResultDTO,
   CreateEventInput,
   EventDTO,
+  MyTicketDTO,
   RsvpCounts,
   RsvpStatus,
   UpdateEventInput,
@@ -87,6 +89,31 @@ export const useEventsStore = defineStore('events', () => {
     return res.status;
   }
 
+  async function fetchMyTicket(eventId: string): Promise<MyTicketDTO | null> {
+    const res = await api.participants.myTicket(eventId);
+    return res.ticket;
+  }
+
+  function patchAttendeeLocal(userId: string, patch: Partial<AttendeeDTO>): void {
+    attendees.value = attendees.value.map((a) => (a.user.id === userId ? { ...a, ...patch } : a));
+  }
+
+  async function updateAttendee(
+    eventId: string,
+    userId: string,
+    patch: { paid?: boolean; checkedIn?: boolean },
+  ): Promise<AttendeeDTO> {
+    const attendee = await api.participants.updateAttendee(eventId, userId, patch);
+    patchAttendeeLocal(userId, attendee);
+    return attendee;
+  }
+
+  async function checkin(eventId: string, ticketCode: string): Promise<CheckinResultDTO> {
+    const result = await api.participants.checkin(eventId, ticketCode);
+    patchAttendeeLocal(result.attendee.user.id, result.attendee);
+    return result;
+  }
+
   /** Live updates pushed over the socket. */
   function applyCounts(next: RsvpCounts): void {
     counts.value = next;
@@ -108,6 +135,9 @@ export const useEventsStore = defineStore('events', () => {
     fetchPublicEvents,
     fetchEvent,
     fetchAttendees,
+    fetchMyTicket,
+    updateAttendee,
+    checkin,
     create,
     update,
     remove,

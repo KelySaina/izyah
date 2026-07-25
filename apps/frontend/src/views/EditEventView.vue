@@ -35,6 +35,9 @@ const initial = computed<Partial<CreateEventInput>>(() =>
         coverImage: event.value.coverImage ?? undefined,
         capacity: event.value.capacity,
         visibility: event.value.visibility,
+        attendanceMode: event.value.attendanceMode,
+        minPafAmount: event.value.minPafAmount,
+        ticketPrice: event.value.ticketPrice,
       }
     : {},
 );

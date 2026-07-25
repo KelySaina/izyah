@@ -1,12 +1,14 @@
 import { getToken } from './session';
 import type {
   AttendeeDTO,
+  CheckinResultDTO,
   CreateEventInput,
   CreatePollInput,
   EventDTO,
   MediaDTO,
   MeDTO,
   MessageDTO,
+  MyTicketDTO,
   NotificationDTO,
   PollDTO,
   RsvpCounts,
@@ -115,6 +117,18 @@ export const api = {
       request<{ counts: RsvpCounts; attendees: AttendeeDTO[] }>(
         `/events/${eventId}/participants`,
       ),
+    myTicket: (eventId: string) =>
+      request<{ ticket: MyTicketDTO | null }>(`/events/${eventId}/participants/me/ticket`),
+    updateAttendee: (eventId: string, userId: string, patch: { paid?: boolean; checkedIn?: boolean }) =>
+      request<AttendeeDTO>(`/events/${eventId}/participants/${userId}`, {
+        method: 'PATCH',
+        body: patch,
+      }),
+    checkin: (eventId: string, ticketCode: string) =>
+      request<CheckinResultDTO>(`/events/${eventId}/participants/checkin`, {
+        method: 'POST',
+        body: { ticketCode },
+      }),
   },
   messages: {
     list: (eventId: string, before?: string) =>

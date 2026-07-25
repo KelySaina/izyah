@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { Event, Prisma, RsvpStatus, User } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { ApiError } from '../../utils/http';
@@ -30,6 +31,9 @@ export interface EventDTO {
   capacity: number | null;
   slug: string;
   visibility: Event['visibility'];
+  attendanceMode: Event['attendanceMode'];
+  minPafAmount: number | null;
+  ticketPrice: number | null;
   creatorId: string;
   creator?: UserDTO;
   createdAt: Date;
@@ -55,6 +59,9 @@ function toEventDTO(event: EventWithCreator, counts: RsvpCounts): EventDTO {
     capacity: event.capacity,
     slug: event.slug,
     visibility: event.visibility,
+    attendanceMode: event.attendanceMode,
+    minPafAmount: event.minPafAmount,
+    ticketPrice: event.ticketPrice,
     creatorId: event.creatorId,
     creator: event.creator ? toUserDTO(event.creator) : undefined,
     createdAt: event.createdAt,
@@ -95,6 +102,9 @@ export async function createEvent(creatorId: string, input: CreateEventInput): P
         coverImage: input.coverImage ?? null,
         capacity: input.capacity ?? null,
         visibility: input.visibility,
+        attendanceMode: input.attendanceMode,
+        minPafAmount: input.minPafAmount ?? null,
+        ticketPrice: input.ticketPrice ?? null,
         creatorId,
       },
       include: { creator: true },
@@ -205,7 +215,7 @@ export async function getEvent(idOrSlug: string, viewerId?: string): Promise<Eve
   return dto;
 }
 
-async function assertCreator(eventId: string, userId: string): Promise<Event> {
+export async function assertCreator(eventId: string, userId: string): Promise<Event> {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) throw ApiError.notFound('Event not found');
   if (event.creatorId !== userId) throw ApiError.forbidden('Only the creator can modify this event');
@@ -218,11 +228,40 @@ export async function updateEvent(
   input: UpdateEventInput,
 ): Promise<EventDTO> {
   const existing = await assertCreator(eventId, userId);
-  const event = await prisma.event.update({
-    where: { id: eventId },
-    data: input,
-    include: { creator: true },
+
+  // The amount fields belong to whichever mode is now in effect — null out
+  // the other one so a MIN_PAF->TICKET (or ->NONE) switch doesn't leave a
+  // stale amount from the old mode lingering (Zod already required the new
+  // mode's own amount be present alongside it, see event.schemas.ts).
+  const data: UpdateEventInput = { ...input };
+  if (input.attendanceMode !== undefined) {
+    if (input.attendanceMode !== 'MIN_PAF') data.minPafAmount = null;
+    if (input.attendanceMode !== 'TICKET') data.ticketPrice = null;
+  }
+
+  const event = await prisma.$transaction(async (tx) => {
+    const updated = await tx.event.update({
+      where: { id: eventId },
+      data,
+      include: { creator: true },
+    });
+    // Switching an event into TICKET mode shouldn't leave already-GOING
+    // attendees ticketless just because they RSVP'd before the switch.
+    if (updated.attendanceMode === 'TICKET') {
+      const missing = await tx.eventParticipant.findMany({
+        where: { eventId, status: 'GOING', ticketCode: null },
+        select: { id: true },
+      });
+      await Promise.all(
+        missing.map((p) => tx.eventParticipant.update({ where: { id: p.id }, data: { ticketCode: randomUUID() } })),
+      );
+    }
+    return updated;
   });
+
+  // Mode changes never clear existing paid/checkedIn/ticketCode history on
+  // EventParticipant rows — only what the frontend currently surfaces
+  // changes. Don't "helpfully" add a cleanup step here.
   await cacheDel(cacheKeys.eventPublic(event.slug), cacheKeys.eventPublic(existing.id));
   const counts = await computeCounts(event.id);
   return toEventDTO(event, counts);

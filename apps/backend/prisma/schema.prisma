@@ -27,20 +27,20 @@ model User {
   lastSeenAt  DateTime @default(now())
 
   // ---- Account-linking columns (populated when a user claims via OIDC) ----
-  email       String?  @unique
-  phone       String?  @unique
-  googleId    String?  @unique
+  email       String? @unique
+  phone       String? @unique
+  googleId    String? @unique
   // Verified OIDC subject (Logto `sub`). Links this row to an external identity.
-  authSubject String?  @unique
-  isClaimed   Boolean  @default(false)
+  authSubject String? @unique
+  isClaimed   Boolean @default(false)
 
-  createdEvents Event[]            @relation("EventCreator")
-  participations EventParticipant[]
-  messages      Message[]
-  media         Media[]
-  assignedTasks Task[]
-  pollVotes     PollVote[]
-  notifications Notification[]
+  createdEvents     Event[]            @relation("EventCreator")
+  participations    EventParticipant[]
+  messages          Message[]
+  media             Media[]
+  assignedTasks     Task[]
+  pollVotes         PollVote[]
+  notifications     Notification[]
   pushSubscriptions PushSubscription[]
 
   @@index([lastSeenAt])
@@ -52,7 +52,7 @@ model User {
 // ---------------------------------------------------------------------------
 
 model Event {
-  id          String   @id @default(uuid()) @db.Uuid
+  id          String          @id @default(uuid()) @db.Uuid
   title       String
   description String?
   // `date` is the event day; startTime / endTime are optional wall-clock times.
@@ -69,14 +69,24 @@ model Event {
   // WAITLIST and are auto-promoted (oldest first) when a spot frees up.
   capacity    Int?
   // Public share slug -> izyah.app/event/{slug}
-  slug        String   @unique @default(cuid())
+  slug        String          @unique @default(cuid())
   visibility  EventVisibility @default(PUBLIC)
 
-  creatorId   String   @db.Uuid
-  creator     User     @relation("EventCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  // Attendance gating for check-in. NONE = no payment/ticket tracking
+  // (default). MIN_PAF = cash/mobile-money collected in person, host marks
+  // paid manually. TICKET = fixed price, attendee gets a QR on RSVP GOING,
+  // host scans (or manually toggles) to check in at the door.
+  attendanceMode AttendanceMode @default(NONE)
+  // Minimum in-person contribution, whole currency units. Set iff MIN_PAF.
+  minPafAmount   Int?
+  // Fixed ticket price, whole currency units. Set iff TICKET.
+  ticketPrice    Int?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  creatorId String @db.Uuid
+  creator   User   @relation("EventCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   participants EventParticipant[]
   messages     Message[]
@@ -95,18 +105,32 @@ enum EventVisibility {
   PRIVATE
 }
 
+enum AttendanceMode {
+  NONE
+  MIN_PAF
+  TICKET
+}
+
 // ---------------------------------------------------------------------------
 // Participation / RSVP
 // ---------------------------------------------------------------------------
 
 model EventParticipant {
-  id       String     @id @default(uuid()) @db.Uuid
-  eventId  String     @db.Uuid
-  userId   String     @db.Uuid
-  status   RsvpStatus @default(GOING)
-  role     ParticipantRole @default(GUEST)
-  joinedAt DateTime   @default(now())
-  updatedAt DateTime  @updatedAt
+  id          String          @id @default(uuid()) @db.Uuid
+  eventId     String          @db.Uuid
+  userId      String          @db.Uuid
+  status      RsvpStatus      @default(GOING)
+  role        ParticipantRole @default(GUEST)
+  // MIN_PAF: host manually marks the in-person contribution collected.
+  paid        Boolean         @default(false)
+  paidAt      DateTime?
+  // TICKET: unique opaque code minted lazily on first GOING transition (see
+  // participant.service.ts#setRsvp). Never exposed to anyone but its owner.
+  ticketCode  String?         @unique
+  checkedIn   Boolean         @default(false)
+  checkedInAt DateTime?
+  joinedAt    DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -154,18 +178,18 @@ model Message {
 // ---------------------------------------------------------------------------
 
 model Media {
-  id        String    @id @default(uuid()) @db.Uuid
-  eventId   String    @db.Uuid
-  userId    String    @db.Uuid
+  id        String      @id @default(uuid()) @db.Uuid
+  eventId   String      @db.Uuid
+  userId    String      @db.Uuid
   // Object key in MinIO; url is a (possibly presigned) access URL.
   objectKey String
   url       String
-  type      MediaType @default(IMAGE)
+  type      MediaType   @default(IMAGE)
   status    MediaStatus @default(READY)
   width     Int?
   height    Int?
   sizeBytes Int?
-  createdAt DateTime  @default(now())
+  createdAt DateTime    @default(now())
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -217,11 +241,11 @@ enum TaskStatus {
 // ---------------------------------------------------------------------------
 
 model Poll {
-  id        String   @id @default(uuid()) @db.Uuid
-  eventId   String   @db.Uuid
+  id        String    @id @default(uuid()) @db.Uuid
+  eventId   String    @db.Uuid
   question  String
   closesAt  DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   event   Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   options PollOption[]

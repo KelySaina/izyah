@@ -4,6 +4,7 @@
 export type RsvpStatus = 'GOING' | 'MAYBE' | 'NOT_GOING' | 'WAITLIST';
 export type ParticipantRole = 'HOST' | 'GUEST';
 export type EventVisibility = 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
+export type AttendanceMode = 'NONE' | 'MIN_PAF' | 'TICKET';
 export type MediaType = 'IMAGE' | 'VIDEO';
 export type MediaStatus = 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED';
 export type TaskStatus = 'OPEN' | 'CLAIMED' | 'DONE';
@@ -45,6 +46,9 @@ export interface EventDTO {
   capacity: number | null;
   slug: string;
   visibility: EventVisibility;
+  attendanceMode: AttendanceMode;
+  minPafAmount: number | null;
+  ticketPrice: number | null;
   creatorId: string;
   creator?: UserDTO;
   createdAt: string;
@@ -58,6 +62,19 @@ export interface AttendeeDTO {
   status: RsvpStatus;
   role: ParticipantRole;
   joinedAt: string;
+  paid: boolean;
+  checkedIn: boolean;
+}
+
+export interface MyTicketDTO {
+  ticketCode: string;
+  checkedIn: boolean;
+  checkedInAt: string | null;
+}
+
+export interface CheckinResultDTO {
+  attendee: AttendeeDTO;
+  alreadyCheckedIn: boolean;
 }
 
 export interface MessageDTO {
@@ -126,6 +143,9 @@ export interface CreateEventInput {
   coverImage?: string;
   capacity?: number | null;
   visibility?: EventVisibility;
+  attendanceMode?: AttendanceMode;
+  minPafAmount?: number | null;
+  ticketPrice?: number | null;
 }
 export type UpdateEventInput = Partial<CreateEventInput>;
 

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
-import { Globe, Lock } from 'lucide-vue-next';
+import { Globe, Lock, Ban, Coins, Ticket } from 'lucide-vue-next';
 import ImagePicker from '@/components/ImagePicker.vue';
 import LocationPicker from '@/components/LocationPicker.vue';
 import { useUiStore } from '@/stores/ui';
 import { formatDate, formatTimeRange } from '@/lib/format';
-import type { CreateEventInput, EventVisibility } from '@/types';
+import type { AttendanceMode, CreateEventInput, EventVisibility } from '@/types';
 
 const props = withDefaults(
   defineProps<{
@@ -34,6 +34,9 @@ interface FormDraft {
   coverImage: string;
   capacity: string;
   visibility: 'PUBLIC' | 'PRIVATE' | null;
+  attendanceMode: AttendanceMode;
+  minPafAmount: string;
+  ticketPrice: string;
 }
 
 function readDraft(): Partial<FormDraft> | null {
@@ -73,6 +76,17 @@ const visibilityOptions: {
   { value: 'PRIVATE', label: 'Private', hint: 'Hidden — only people with the link can join', icon: Lock },
 ];
 
+const attendanceModeOptions: {
+  value: AttendanceMode;
+  label: string;
+  hint: string;
+  icon: typeof Ban;
+}[] = [
+  { value: 'NONE', label: 'None', hint: 'Anyone who RSVPs is good to go', icon: Ban },
+  { value: 'MIN_PAF', label: 'Min PAF', hint: 'In-person contribution, you mark who paid', icon: Coins },
+  { value: 'TICKET', label: 'Ticket', hint: 'Fixed price, attendees get a QR you scan', icon: Ticket },
+];
+
 // The <input type="date"> wants YYYY-MM-DD; normalise any ISO initial value.
 // A restored draft wins over `initial` defaults — `readDraft()` only ever
 // returns non-null when there's no `initial` to begin with (see above).
@@ -88,6 +102,11 @@ const form = reactive<FormDraft>({
   coverImage: draft?.coverImage ?? props.initial?.coverImage ?? '',
   capacity: draft?.capacity ?? (props.initial?.capacity != null ? String(props.initial.capacity) : ''),
   visibility: draft?.visibility ?? initialVisibility,
+  attendanceMode: draft?.attendanceMode ?? props.initial?.attendanceMode ?? 'NONE',
+  minPafAmount:
+    draft?.minPafAmount ?? (props.initial?.minPafAmount != null ? String(props.initial.minPafAmount) : ''),
+  ticketPrice:
+    draft?.ticketPrice ?? (props.initial?.ticketPrice != null ? String(props.initial.ticketPrice) : ''),
 });
 
 if (props.draftKey) {
@@ -121,7 +140,10 @@ const missing = computed(() => ({
   basics: !form.title.trim(),
   when: !form.date,
   where: !form.location.trim(),
-  options: !form.visibility,
+  options:
+    !form.visibility ||
+    (form.attendanceMode === 'MIN_PAF' && !form.minPafAmount.trim()) ||
+    (form.attendanceMode === 'TICKET' && !form.ticketPrice.trim()),
 }));
 const anyMissing = computed(() => Object.values(missing.value).some(Boolean));
 
@@ -142,6 +164,10 @@ function onLocationUpdate(v: {
 function clean(value: string): string | undefined {
   const v = value.trim();
   return v.length ? v : undefined;
+}
+
+function isPositiveInt(value: string): boolean {
+  return /^\d+$/.test(value) && Number(value) >= 1;
 }
 
 function onSubmit(): void {
@@ -166,9 +192,21 @@ function onSubmit(): void {
     return;
   }
   const capacityTrimmed = form.capacity.trim();
-  if (capacityTrimmed && (!/^\d+$/.test(capacityTrimmed) || Number(capacityTrimmed) < 1)) {
+  if (capacityTrimmed && !isPositiveInt(capacityTrimmed)) {
     activeTab.value = 'options';
     ui.toast('Capacity must be a positive number', 'error');
+    return;
+  }
+  const minPafTrimmed = form.minPafAmount.trim();
+  if (form.attendanceMode === 'MIN_PAF' && !isPositiveInt(minPafTrimmed)) {
+    activeTab.value = 'options';
+    ui.toast('Minimum contribution must be a positive number', 'error');
+    return;
+  }
+  const ticketPriceTrimmed = form.ticketPrice.trim();
+  if (form.attendanceMode === 'TICKET' && !isPositiveInt(ticketPriceTrimmed)) {
+    activeTab.value = 'options';
+    ui.toast('Ticket price must be a positive number', 'error');
     return;
   }
   emit('submit', {
@@ -183,6 +221,9 @@ function onSubmit(): void {
     coverImage: clean(form.coverImage),
     capacity: capacityTrimmed ? Number(capacityTrimmed) : null,
     visibility: form.visibility as EventVisibility,
+    attendanceMode: form.attendanceMode,
+    minPafAmount: form.attendanceMode === 'MIN_PAF' ? Number(minPafTrimmed) : null,
+    ticketPrice: form.attendanceMode === 'TICKET' ? Number(ticketPriceTrimmed) : null,
   });
 }
 </script>
@@ -248,6 +289,12 @@ function onSubmit(): void {
         <div class="flex items-center justify-between gap-3">
           <dt class="text-fg-3">Capacity</dt>
           <dd class="text-fg">{{ form.capacity || 'Unlimited' }}</dd>
+        </div>
+        <div v-if="form.attendanceMode !== 'NONE'" class="flex items-center justify-between gap-3">
+          <dt class="text-fg-3">{{ form.attendanceMode === 'TICKET' ? 'Ticket price' : 'Min PAF' }}</dt>
+          <dd class="text-fg">
+            {{ form.attendanceMode === 'TICKET' ? form.ticketPrice : form.minPafAmount || '—' }}
+          </dd>
         </div>
         <div class="flex items-center justify-between gap-3">
           <dt class="text-fg-3">Visibility</dt>
@@ -363,6 +410,66 @@ function onSubmit(): void {
         />
         <p class="mt-1 text-xs text-fg-3">
           Leave blank for no limit. Once full, new RSVPs join a waitlist.
+        </p>
+      </div>
+
+      <div>
+        <span class="label">Attendance</span>
+        <div class="grid grid-cols-3 gap-2">
+          <button
+            v-for="opt in attendanceModeOptions"
+            :key="opt.value"
+            type="button"
+            class="flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition"
+            :class="
+              form.attendanceMode === opt.value
+                ? 'border-brand-500 bg-brand-500/10'
+                : 'border-line/15 bg-surface-2 hover:border-line/30'
+            "
+            :aria-pressed="form.attendanceMode === opt.value"
+            @click="form.attendanceMode = opt.value"
+          >
+            <span class="flex items-center gap-1.5 text-sm font-semibold text-fg">
+              <component :is="opt.icon" :size="15" :stroke-width="2.25" /> {{ opt.label }}
+            </span>
+            <span class="text-xs leading-snug text-fg-3">{{ opt.hint }}</span>
+          </button>
+        </div>
+
+        <div v-if="form.attendanceMode === 'MIN_PAF'" class="mt-3">
+          <label class="label" for="ev-min-paf">Minimum contribution *</label>
+          <input
+            id="ev-min-paf"
+            v-model="form.minPafAmount"
+            type="number"
+            min="1"
+            inputmode="numeric"
+            class="input"
+            placeholder="e.g. 20000"
+          />
+        </div>
+        <div v-if="form.attendanceMode === 'TICKET'" class="mt-3">
+          <label class="label" for="ev-ticket-price">Ticket price *</label>
+          <input
+            id="ev-ticket-price"
+            v-model="form.ticketPrice"
+            type="number"
+            min="1"
+            inputmode="numeric"
+            class="input"
+            placeholder="e.g. 20000"
+          />
+        </div>
+        <p
+          v-if="
+            initial?.attendanceMode &&
+            initial.attendanceMode !== 'NONE' &&
+            form.attendanceMode !== initial.attendanceMode
+          "
+          class="mt-2 text-xs text-fg-3"
+        >
+          Changing this won't affect already-collected payments or check-ins — it only changes
+          what's tracked going forward.
         </p>
       </div>
 

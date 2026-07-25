@@ -12,12 +12,15 @@ import {
   ListChecks,
   BarChart3,
   ChevronRight,
+  QrCode,
 } from 'lucide-vue-next';
 import Avatar from '@/components/Avatar.vue';
 import DateBadge from '@/components/DateBadge.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import RsvpButtons from '@/components/RsvpButtons.vue';
 import AttendeeList from '@/components/AttendeeList.vue';
+import MyTicketCard from '@/components/MyTicketCard.vue';
+import TicketScanner from '@/components/TicketScanner.vue';
 import ShareSheet from '@/components/ShareSheet.vue';
 import MediaGallery from '@/components/MediaGallery.vue';
 import EventDetailSkeleton from '@/components/EventDetailSkeleton.vue';
@@ -41,6 +44,7 @@ const ui = useUiStore();
 const loading = ref(true);
 const notFound = ref(false);
 const coverLightbox = ref<number | null>(null);
+const scannerOpen = ref(false);
 // Best-effort counts for the Chat/Tasks/Polls entry point below — fetched
 // alongside the page, never blocking it, since they're a secondary signal.
 const taskCount = ref(0);
@@ -104,6 +108,18 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
     ui.toast(err instanceof ApiError ? err.message : 'Something went wrong', 'error');
   }
 }
+
+async function onToggleAttendee(
+  userId: string,
+  patch: { paid?: boolean; checkedIn?: boolean },
+): Promise<void> {
+  if (!event.value) return;
+  try {
+    await events.updateAttendee(event.value.id, userId, patch);
+  } catch (err) {
+    ui.toast(err instanceof ApiError ? err.message : 'Something went wrong', 'error');
+  }
+}
 </script>
 
 <template>
@@ -155,13 +171,22 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
             <MapPin :size="14" class="text-fg-3" /> {{ event.location }}
           </p>
         </div>
-        <RouterLink
-          v-if="isCreator"
-          :to="`/event/${event.id}/edit`"
-          class="btn-ghost !gap-1.5 !px-3 !py-1.5 text-xs"
-        >
-          <Pencil :size="14" /> Edit
-        </RouterLink>
+        <div v-if="isCreator" class="flex shrink-0 flex-col gap-1.5">
+          <button
+            v-if="event.attendanceMode === 'TICKET' && !isPast"
+            type="button"
+            class="btn-ghost !gap-1.5 !px-3 !py-1.5 text-xs"
+            @click="scannerOpen = true"
+          >
+            <QrCode :size="14" /> Scan tickets
+          </button>
+          <RouterLink
+            :to="`/event/${event.id}/edit`"
+            class="btn-ghost !gap-1.5 !px-3 !py-1.5 text-xs"
+          >
+            <Pencil :size="14" /> Edit
+          </RouterLink>
+        </div>
       </div>
 
       <div v-if="event.creator" class="flex items-center gap-2 text-sm text-fg-2">
@@ -193,6 +218,12 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
       :counts="event.counts"
       :capacity="event.capacity"
       @change="onRsvp"
+    />
+
+    <!-- Your ticket QR (TICKET events, once you're GOING) -->
+    <MyTicketCard
+      v-if="event.attendanceMode === 'TICKET' && event.viewerStatus === 'GOING' && !isPast"
+      :event-id="event.id"
     />
 
     <!-- Chat / tasks / polls entry point -->
@@ -231,6 +262,9 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
         :attendees="events.attendees"
         :counts="events.counts"
         :online="event.onlineCount"
+        :is-host="isCreator"
+        :attendance-mode="event.attendanceMode"
+        @toggle="onToggleAttendee"
       />
     </section>
 
@@ -249,5 +283,7 @@ async function onRsvp(status: RsvpStatus): Promise<void> {
       v-model="coverLightbox"
       :items="event.coverImage ? [{ url: event.coverImage, type: 'IMAGE' }] : []"
     />
+
+    <TicketScanner v-if="isCreator" v-model="scannerOpen" :event-id="event.id" />
   </div>
 </template>
