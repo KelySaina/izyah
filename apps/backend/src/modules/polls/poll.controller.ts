@@ -9,7 +9,7 @@ export async function list(req: Request, res: Response) {
 
 /** POST /events/:eventId/polls */
 export async function create(req: Request, res: Response) {
-  const poll = await createPoll(req.params.eventId!, req.body);
+  const poll = await createPoll(req.params.eventId!, req.userId!, req.user!.displayName, req.body);
   res.status(201).json(poll);
 }
 

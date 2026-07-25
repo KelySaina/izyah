@@ -89,12 +89,19 @@ export async function setRsvp(
     /* socket server not running (e.g. in tests) */
   }
 
-  // Best-effort notifications — never block the RSVP response on these.
-  if (effectiveStatus === 'GOING' && !wasGoing && userId !== event.creatorId) {
+  // Best-effort notifications — never block the RSVP response on these. The
+  // host still hears about it even if they're the one RSVPing (phrased as
+  // "You" — see notification.worker.ts / NotificationsSheet's text mapping).
+  if (effectiveStatus === 'GOING' && !wasGoing) {
     void enqueueNotification({
       userId: event.creatorId,
       type: 'rsvp_going',
-      payload: { eventId: event.id, eventSlug: event.slug, eventTitle: event.title, displayName },
+      payload: {
+        eventId: event.id,
+        eventSlug: event.slug,
+        eventTitle: event.title,
+        displayName: userId === event.creatorId ? 'You' : displayName,
+      },
     }).catch(() => undefined);
   }
   if (promotedUserId) {

@@ -2,7 +2,7 @@ import type { Task, User } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { ApiError } from '../../utils/http';
 import { toUserDTO, type UserDTO } from '../users/user.service';
-import { enqueueNotification } from '../../queue';
+import { notifyEventParticipants } from '../notifications/notification.service';
 import type { CreateTaskInput, UpdateTaskInput } from './task.schemas';
 
 export interface TaskDTO {
@@ -42,12 +42,31 @@ async function findTaskInEvent(eventId: string, taskId: string): Promise<Task> {
   return task;
 }
 
-export async function createTask(eventId: string, input: CreateTaskInput): Promise<TaskDTO> {
-  await assertEventExists(eventId);
+export async function createTask(
+  eventId: string,
+  userId: string,
+  displayName: string,
+  input: CreateTaskInput,
+): Promise<TaskDTO> {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { slug: true, title: true },
+  });
+  if (!event) throw ApiError.notFound('Event not found');
+
   const task = await prisma.task.create({
     data: { eventId, title: input.title },
     include: { assignedUser: true },
   });
+
+  void notifyEventParticipants(eventId, userId, 'task_created', {
+    eventId,
+    eventSlug: event.slug,
+    eventTitle: event.title,
+    taskTitle: task.title,
+    displayName,
+  }).catch(() => undefined);
+
   return toTaskDTO(task);
 }
 
@@ -76,19 +95,17 @@ export async function claimTask(
 
   const event = await prisma.event.findUnique({
     where: { id: eventId },
-    select: { slug: true, title: true, creatorId: true },
+    select: { slug: true, title: true },
   });
-  if (event && event.creatorId !== userId) {
-    void enqueueNotification({
-      userId: event.creatorId,
-      type: 'task_claimed',
-      payload: {
-        eventId,
-        eventSlug: event.slug,
-        eventTitle: event.title,
-        taskTitle: existing.title,
-        displayName,
-      },
+  if (event) {
+    // Everyone engaged with the event, not just the host — so people know
+    // a task's covered without needing to reopen the sheet to check.
+    void notifyEventParticipants(eventId, userId, 'task_claimed', {
+      eventId,
+      eventSlug: event.slug,
+      eventTitle: event.title,
+      taskTitle: existing.title,
+      displayName,
     }).catch(() => undefined);
   }
 

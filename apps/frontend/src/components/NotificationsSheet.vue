@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { Bell, CalendarCheck, Check, ClipboardCheck, X } from 'lucide-vue-next';
+import { Bell, BarChart3, CalendarCheck, Check, ClipboardCheck, X } from 'lucide-vue-next';
 import EmptyState from '@/components/EmptyState.vue';
 import { useNotificationsStore } from '@/stores/notifications';
 import { relativeTime } from '@/lib/format';
@@ -31,17 +31,31 @@ interface TaskClaimedPayload {
   taskTitle: string;
   displayName: string;
 }
+interface TaskCreatedPayload {
+  eventTitle: string;
+  eventSlug: string;
+  taskTitle: string;
+  displayName: string;
+}
+interface PollCreatedPayload {
+  eventTitle: string;
+  eventSlug: string;
+  question: string;
+  displayName: string;
+}
 
 function icon(n: NotificationDTO) {
-  if (n.type === 'task_claimed') return ClipboardCheck;
+  if (n.type === 'task_claimed' || n.type === 'task_created') return ClipboardCheck;
   if (n.type === 'waitlist_promoted') return CalendarCheck;
+  if (n.type === 'poll_created') return BarChart3;
   return Bell;
 }
 
 function text(n: NotificationDTO): string {
   if (n.type === 'rsvp_going') {
     const p = n.payload as RsvpGoingPayload;
-    return `${p.displayName} is going to "${p.eventTitle}"`;
+    // Works for a real name or "You" alike — avoids an is/are special-case.
+    return `${p.displayName} joined "${p.eventTitle}"`;
   }
   if (n.type === 'waitlist_promoted') {
     const p = n.payload as WaitlistPromotedPayload;
@@ -50,6 +64,14 @@ function text(n: NotificationDTO): string {
   if (n.type === 'task_claimed') {
     const p = n.payload as TaskClaimedPayload;
     return `${p.displayName} claimed "${p.taskTitle}" for "${p.eventTitle}"`;
+  }
+  if (n.type === 'task_created') {
+    const p = n.payload as TaskCreatedPayload;
+    return `${p.displayName} added a task: "${p.taskTitle}" for "${p.eventTitle}"`;
+  }
+  if (n.type === 'poll_created') {
+    const p = n.payload as PollCreatedPayload;
+    return `${p.displayName} started a poll for "${p.eventTitle}": "${p.question}"`;
   }
   return 'New notification';
 }

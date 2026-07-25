@@ -15,7 +15,7 @@ export async function list(req: Request, res: Response) {
 
 /** POST /events/:eventId/tasks */
 export async function create(req: Request, res: Response) {
-  const task = await createTask(req.params.eventId!, req.body);
+  const task = await createTask(req.params.eventId!, req.userId!, req.user!.displayName, req.body);
   res.status(201).json(task);
 }
 

@@ -12,7 +12,9 @@ function toPushMessage(type: string, payload: Record<string, unknown> | null): P
   const url = p.eventSlug ? `/event/${p.eventSlug}` : undefined;
 
   if (type === 'rsvp_going') {
-    return { title: "You're hosting", body: `${p.displayName} is going to "${p.eventTitle}"`, url };
+    // Phrasing works whether p.displayName is a real name or "You" — avoids
+    // an is/are conjugation special-case.
+    return { title: "You're hosting", body: `${p.displayName} joined "${p.eventTitle}"`, url };
   }
   if (type === 'waitlist_promoted') {
     return { title: "You're in!", body: `You're off the waitlist for "${p.eventTitle}"`, url };
@@ -21,6 +23,20 @@ function toPushMessage(type: string, payload: Record<string, unknown> | null): P
     return {
       title: p.eventTitle ?? "Izy'Ah",
       body: `${p.displayName} claimed "${p.taskTitle}"`,
+      url,
+    };
+  }
+  if (type === 'task_created') {
+    return {
+      title: p.eventTitle ?? "Izy'Ah",
+      body: `${p.displayName} added a task: "${p.taskTitle}"`,
+      url,
+    };
+  }
+  if (type === 'poll_created') {
+    return {
+      title: p.eventTitle ?? "Izy'Ah",
+      body: `${p.displayName} started a poll: "${p.question}"`,
       url,
     };
   }

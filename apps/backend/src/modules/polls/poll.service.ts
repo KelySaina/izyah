@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { ApiError } from '../../utils/http';
+import { notifyEventParticipants } from '../notifications/notification.service';
 import type { CreatePollInput } from './poll.schemas';
 
 export interface PollOptionDTO {
@@ -61,8 +62,18 @@ async function loadPoll(eventId: string, pollId: string, viewerId?: string): Pro
   return toPollDTO(poll, viewerOptionId);
 }
 
-export async function createPoll(eventId: string, input: CreatePollInput): Promise<PollDTO> {
-  await assertEventExists(eventId);
+export async function createPoll(
+  eventId: string,
+  userId: string,
+  displayName: string,
+  input: CreatePollInput,
+): Promise<PollDTO> {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { slug: true, title: true },
+  });
+  if (!event) throw ApiError.notFound('Event not found');
+
   const poll = await prisma.poll.create({
     data: {
       eventId,
@@ -72,6 +83,15 @@ export async function createPoll(eventId: string, input: CreatePollInput): Promi
     },
     include: { options: { include: { _count: { select: { votes: true } } } } },
   });
+
+  void notifyEventParticipants(eventId, userId, 'poll_created', {
+    eventId,
+    eventSlug: event.slug,
+    eventTitle: event.title,
+    question: poll.question,
+    displayName,
+  }).catch(() => undefined);
+
   return toPollDTO(poll, null);
 }
 
