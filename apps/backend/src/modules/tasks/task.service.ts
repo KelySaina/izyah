@@ -116,6 +116,7 @@ export async function releaseTask(
   eventId: string,
   taskId: string,
   userId: string,
+  displayName: string,
 ): Promise<TaskDTO> {
   const existing = await findTaskInEvent(eventId, taskId);
   // Only the current assignee may release the task back to the pool.
@@ -127,19 +128,53 @@ export async function releaseTask(
     data: { assignedUserId: null, status: 'OPEN' },
     include: { assignedUser: true },
   });
+
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { slug: true, title: true },
+  });
+  if (event) {
+    void notifyEventParticipants(eventId, userId, 'task_released', {
+      eventId,
+      eventSlug: event.slug,
+      eventTitle: event.title,
+      taskTitle: existing.title,
+      displayName,
+    }).catch(() => undefined);
+  }
+
   return toTaskDTO(task);
 }
 
 export async function updateTask(
   eventId: string,
   taskId: string,
+  userId: string,
+  displayName: string,
   input: UpdateTaskInput,
 ): Promise<TaskDTO> {
-  await findTaskInEvent(eventId, taskId);
+  const existing = await findTaskInEvent(eventId, taskId);
   const task = await prisma.task.update({
     where: { id: taskId },
     data: input,
     include: { assignedUser: true },
   });
+
+  if (input.status === 'DONE' && existing.status !== 'DONE') {
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { slug: true, title: true },
+    });
+    if (event) {
+      void notifyEventParticipants(eventId, userId, 'task_done', {
+        eventId,
+        eventSlug: event.slug,
+        eventTitle: event.title,
+        taskTitle: existing.title,
+        displayName,
+      }).catch(() => undefined);
+    }
+  }
+
   return toTaskDTO(task);
 }

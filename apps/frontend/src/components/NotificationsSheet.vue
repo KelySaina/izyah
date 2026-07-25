@@ -43,9 +43,23 @@ interface PollCreatedPayload {
   question: string;
   displayName: string;
 }
+interface TaskReleasedPayload {
+  eventTitle: string;
+  eventSlug: string;
+  taskTitle: string;
+  displayName: string;
+}
+interface TaskDonePayload {
+  eventTitle: string;
+  eventSlug: string;
+  taskTitle: string;
+  displayName: string;
+}
 
 function icon(n: NotificationDTO) {
-  if (n.type === 'task_claimed' || n.type === 'task_created') return ClipboardCheck;
+  if (n.type === 'task_claimed' || n.type === 'task_created' || n.type === 'task_released')
+    return ClipboardCheck;
+  if (n.type === 'task_done') return Check;
   if (n.type === 'waitlist_promoted') return CalendarCheck;
   if (n.type === 'poll_created') return BarChart3;
   return Bell;
@@ -72,6 +86,14 @@ function text(n: NotificationDTO): string {
   if (n.type === 'poll_created') {
     const p = n.payload as PollCreatedPayload;
     return `${p.displayName} started a poll for "${p.eventTitle}": "${p.question}"`;
+  }
+  if (n.type === 'task_released') {
+    const p = n.payload as TaskReleasedPayload;
+    return `${p.displayName} released "${p.taskTitle}" for "${p.eventTitle}"`;
+  }
+  if (n.type === 'task_done') {
+    const p = n.payload as TaskDonePayload;
+    return `${p.displayName} finished "${p.taskTitle}" for "${p.eventTitle}"`;
   }
   return 'New notification';
 }

@@ -33,10 +33,22 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
+/** `navigator.serviceWorker.ready` never settles if no service worker ever
+ *  registers (e.g. the Vite dev server, which skips SW registration) — bound
+ *  it so callers fail loudly instead of hanging forever. */
+async function readyRegistration(timeoutMs = 5000): Promise<ServiceWorkerRegistration> {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Notifications are unavailable right now')), timeoutMs),
+    ),
+  ]);
+}
+
 /** Current subscription for this browser/device, if any. */
 export async function getPushSubscription(): Promise<PushSubscription | null> {
   if (!isPushSupported()) return null;
-  const reg = await navigator.serviceWorker.ready;
+  const reg = await readyRegistration();
   return reg.pushManager.getSubscription();
 }
 
@@ -49,7 +61,7 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
   const { key } = await api.notifications.vapidPublicKey();
   if (!key) return null;
 
-  const reg = await navigator.serviceWorker.ready;
+  const reg = await readyRegistration();
   const existing = await reg.pushManager.getSubscription();
   const subscription =
     existing ??

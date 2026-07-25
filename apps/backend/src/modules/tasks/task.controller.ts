@@ -32,12 +32,23 @@ export async function claim(req: Request, res: Response) {
 
 /** POST /events/:eventId/tasks/:taskId/release */
 export async function release(req: Request, res: Response) {
-  const task = await releaseTask(req.params.eventId!, req.params.taskId!, req.userId!);
+  const task = await releaseTask(
+    req.params.eventId!,
+    req.params.taskId!,
+    req.userId!,
+    req.user!.displayName,
+  );
   res.json(task);
 }
 
 /** PATCH /events/:eventId/tasks/:taskId */
 export async function update(req: Request, res: Response) {
-  const task = await updateTask(req.params.eventId!, req.params.taskId!, req.body);
+  const task = await updateTask(
+    req.params.eventId!,
+    req.params.taskId!,
+    req.userId!,
+    req.user!.displayName,
+    req.body,
+  );
   res.json(task);
 }

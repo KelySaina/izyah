@@ -40,6 +40,20 @@ function toPushMessage(type: string, payload: Record<string, unknown> | null): P
       url,
     };
   }
+  if (type === 'task_released') {
+    return {
+      title: p.eventTitle ?? "Izy'Ah",
+      body: `${p.displayName} released "${p.taskTitle}"`,
+      url,
+    };
+  }
+  if (type === 'task_done') {
+    return {
+      title: p.eventTitle ?? "Izy'Ah",
+      body: `${p.displayName} finished "${p.taskTitle}"`,
+      url,
+    };
+  }
   return { title: "Izy'Ah", body: 'You have a new notification', url };
 }
 
