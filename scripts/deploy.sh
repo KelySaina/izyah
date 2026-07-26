@@ -67,6 +67,13 @@ warn_new_env_keys() {
 #
 # Advisory, never fatal: upgrading the compose binary can legitimately change
 # how every hash is computed, and that must not be able to block a deploy.
+#
+# NOTE: only meaningful because $COMPOSE is the exact file set these containers
+# were created from. A different -f list resolves to a different config and so
+# a different hash, reporting drift that doesn't exist — which is easy to do by
+# hand on a dev box carrying a gitignored docker-compose.local.yml. Holds here:
+# setup.sh omits only docker-compose.deploy.yml, which defines nothing but
+# backend and frontend, and those two are skipped below anyway.
 warn_stale_containers() {
   local service hash cid running drifted=()
   while read -r service hash; do
