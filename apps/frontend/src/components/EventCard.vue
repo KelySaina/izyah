@@ -4,12 +4,18 @@ import { RouterLink } from 'vue-router';
 import { MapPin, Users, Flame } from 'lucide-vue-next';
 import DateBadge from '@/components/DateBadge.vue';
 import OnlineBadge from '@/components/OnlineBadge.vue';
+import Avatar from '@/components/Avatar.vue';
+import { useIdentityStore } from '@/stores/identity';
 import { eventTimeLabel } from '@/lib/format';
 import type { EventDTO } from '@/types';
 
 const props = defineProps<{ event: EventDTO; trending?: boolean }>();
 
+const identity = useIdentityStore();
 const time = computed(() => eventTimeLabel(props.event.date));
+const hostName = computed(() =>
+  identity.id === props.event.creatorId ? 'You' : props.event.creator?.displayName ?? 'Someone',
+);
 const DATE_SIZE = 64;
 </script>
 
@@ -45,6 +51,9 @@ const DATE_SIZE = 64;
         <h3 class="truncate font-display font-semibold text-fg">{{ event.title }}</h3>
         <p v-if="event.location" class="mt-1 flex items-center gap-1 truncate text-sm text-fg-2">
           <MapPin :size="13" class="shrink-0 text-fg-3" /> {{ event.location }}
+        </p>
+        <p v-if="event.creator" class="mt-1 flex items-center gap-1 truncate text-xs text-fg-3">
+          <Avatar :user="event.creator" :size="14" /> Hosted by {{ hostName }}
         </p>
         <div class="mt-2 flex items-center gap-3 text-xs text-fg-2">
           <span class="flex items-center gap-1">
