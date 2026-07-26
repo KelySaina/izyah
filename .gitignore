@@ -44,5 +44,9 @@ pnpm-debug.log*
 docker-compose.local.yml
 letsencrypt/
 
+# scripts/backup.sh output — contains live secrets + a full DB/media dump
+backups/
+.env.bak-*
+
 izyah_deploy
 izyah_deploy.pub

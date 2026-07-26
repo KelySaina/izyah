@@ -433,6 +433,28 @@ Doing it by hand instead:
 Optional: [SETUP-AUTH.md](SETUP-AUTH.md) to provision Logto and enable account-linking —
 the app runs anonymous-only without it.
 
+**Moving to a different VPS/provider?** Postgres, Redis, and MinIO all live in Docker
+volumes local to that box's disk — they don't follow you automatically.
+[`scripts/backup.sh`](scripts/backup.sh) (run on the old box) and
+[`scripts/restore.sh`](scripts/restore.sh) (run on the new one, after `./setup.sh`) cover
+the full move: database, uploaded media, and matching secrets so existing sessions keep
+working. See either script's header comment for the exact steps.
+
+**Backups run on a schedule automatically** — the `backup` service in `docker-compose.yml`
+(a small sidecar, [`infra/backup/Dockerfile`](infra/backup/Dockerfile) +
+[`scripts/backup-cron.js`](scripts/backup-cron.js) on `node-cron`) runs `backup.sh` weekly
+by default. No OS crontab to install; it comes up with everything else on
+`docker compose up -d --build`. Configure via root `.env`:
+
+| Variable          | Purpose                                                         |
+| ------------------ | ---------------------------------------------------------------- |
+| `BACKUP_SCHEDULE` | Cron expression. Blank = weekly, Sundays 03:30 UTC.              |
+| `BACKUP_KEEP`      | How many archives to keep in `backups/`; oldest pruned after each run. Blank = 8. |
+
+It needs the host's Docker socket (mounted read-only, same pattern Traefik already uses)
+to run `backup.sh`'s `docker compose exec`/`docker cp` against the sibling containers —
+nothing outside this one service gets that access.
+
 ---
 
 Built as a clean, evolvable foundation — ship the web MVP, validate adoption, then grow into

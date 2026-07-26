@@ -1,0 +1,20 @@
+# Build context for infra/backup/Dockerfile (context: repo root). Keeps
+# secrets/history/other apps' node_modules out of that image entirely — the
+# backup service gets .env and backups/ via a targeted bind mount instead,
+# not baked in. Mirrors .gitignore plus .git itself (which git doesn't need
+# to ignore about itself, but Docker's build context isn't git-aware).
+.git
+.env
+.env.*
+!.env.example
+node_modules
+apps/*/node_modules
+apps/*/dist
+apps/frontend/dev-dist
+backups
+letsencrypt
+coverage
+playwright-report
+test-results
+*.log
+*.tsbuildinfo

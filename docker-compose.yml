@@ -279,3 +279,26 @@ services:
       - traefik.http.routers.frontend.tls.certresolver=letsencrypt
     networks:
       - izyah
+
+  # --------------------------------------------------------------------------
+  # Periodic backups (Postgres + Redis + MinIO + .env) — node-cron scheduler.
+  # Needs the host's docker socket to run scripts/backup.sh's `docker compose
+  # exec`/`docker cp` against the sibling containers (same pattern Traefik
+  # already uses below for its own docker provider). See scripts/backup-cron.js.
+  # --------------------------------------------------------------------------
+  backup:
+    build:
+      context: .
+      dockerfile: infra/backup/Dockerfile
+    image: izyah-backup
+    container_name: izyah-backup-cron
+    restart: unless-stopped
+    environment:
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-}
+      BACKUP_KEEP: ${BACKUP_KEEP:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./.env:/app/.env:ro
+      - ./backups:/app/backups
+    networks:
+      - izyah

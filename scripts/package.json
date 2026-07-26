@@ -1,0 +1,8 @@
+{
+  "name": "izyah-ops-scripts",
+  "private": true,
+  "description": "Standalone Node deps for ops tooling (backup-cron.js) — deliberately isolated from apps/backend's package.json, since this isn't app code.",
+  "dependencies": {
+    "node-cron": "^4.6.0"
+  }
+}
