@@ -17,9 +17,38 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
+  # 0. Detect what actually changed, so a docs/README-only push (or a PR that
+  #    only touches one app) doesn't burn CI minutes testing/building/deploying
+  #    things that couldn't possibly have broken.
+  # ---------------------------------------------------------------------------
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      core: ${{ steps.filter.outputs.core }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'apps/backend/**'
+            frontend:
+              - 'apps/frontend/**'
+            core:
+              - '.github/workflows/**'
+              - 'infra/**'
+              - 'scripts/**'
+              - 'docker-compose*.yml'
+              - 'setup.sh'
+
+  # ---------------------------------------------------------------------------
   # 1. Tests — the gate. Nothing builds or deploys unless these pass.
   # ---------------------------------------------------------------------------
   test-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.core == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -57,6 +86,8 @@ jobs:
       - run: npm test
 
   test-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.core == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -80,8 +111,15 @@ jobs:
   # 2. Build once, push immutable :<sha> (+ :latest) to GHCR. Layer-cached.
   # ---------------------------------------------------------------------------
   build-and-push:
-    needs: [test-backend, test-frontend]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [changes, test-backend, test-frontend]
+    # `always()` so a skipped test job (its app wasn't touched) doesn't skip
+    # this too — only an actual test *failure* should block the build.
+    if: |
+      always() &&
+      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.core == 'true') &&
+      (needs.test-backend.result == 'success' || needs.test-backend.result == 'skipped') &&
+      (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read
