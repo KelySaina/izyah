@@ -232,6 +232,35 @@ npm install
 npm run dev                # http://localhost:5173
 ```
 
+### Working across two machines
+
+After the first-time setup above, use [`scripts/dev-sync.sh`](scripts/dev-sync.sh) to bring a
+second computer up to date instead of repeating those steps by hand:
+
+```bash
+make sync          # pull, reconcile env, deps, infra, migrations
+make sync-seed     # ...and re-seed demo data
+```
+
+It pulls (fast-forward only), then for each of the three gitignored env files (`.env`,
+`apps/backend/.env`, `apps/frontend/.env`) **appends any key its `.env.example` has that
+your file doesn't** — existing values are never modified, so machine-specific settings like
+a remapped `DATABASE_URL` port survive. It then reinstalls deps only if a lockfile actually
+changed, starts the dev infra (picking up a gitignored `docker-compose.local.yml` if you have
+one), and runs `prisma generate` + `prisma migrate deploy`.
+
+Two notes on why it does what it does:
+
+- **`prisma generate` matters as much as the migrate.** Pulling a schema change without
+  regenerating the client produces confusing runtime errors (`Unknown argument 'x'`) even
+  though the schema and database are both correct.
+- **A database that predates the migration history self-heals.** Prisma reports `P3005`
+  and refuses to run; the script baselines it (marks existing migrations as applied) rather
+  than suggesting `migrate reset`, which would wipe your local data. It prompts first,
+  because baselining runs `db push --accept-data-loss` to square the schema.
+
+Anything it rewrites is backed up alongside the original as `<file>.bak-<timestamp>`.
+
 ## Environment variables
 
 Root `.env` (consumed by `docker-compose.yml`) — see [`.env.example`](.env.example) for the

@@ -1,6 +1,6 @@
 # Izy'Ah — common tasks. Run `make help` for the list.
 .DEFAULT_GOAL := help
-.PHONY: help up up-build down down-v logs dev-infra ps \
+.PHONY: help up up-build down down-v logs dev-infra ps sync sync-seed \
         backend-install backend-dev backend-test backend-typecheck \
         frontend-install frontend-dev frontend-test frontend-typecheck \
         install typecheck test seed
@@ -8,6 +8,13 @@
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 	  awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+## ---- Multi-machine sync ----
+sync: ## Pull + reconcile .env + deps + infra + migrations (use on your other computer)
+	bash scripts/dev-sync.sh
+
+sync-seed: ## Same as `sync`, then re-seed demo data
+	bash scripts/dev-sync.sh --seed
 
 ## ---- Docker (full stack) ----
 up: ## Start the whole stack
