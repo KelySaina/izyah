@@ -24,7 +24,13 @@ services:
   # Reverse proxy
   # --------------------------------------------------------------------------
   traefik:
-    image: traefik:v3.1
+    # Must be v3.6.1+: earlier v3 tags pin Docker API 1.24, which Docker Engine
+    # 28+ refuses ("client version 1.24 is too old"). The provider then loops on
+    # errors and discovers NO routers, so every request 404s while the app
+    # itself looks perfectly healthy. Keep this in sync with the pin in
+    # setup.sh's generated docker-compose.prod.yml — a mismatch means anyone
+    # who recreates traefik without that overlay silently breaks all routing.
+    image: traefik:v3.6.1
     container_name: izyah-traefik
     restart: unless-stopped
     command:
