@@ -155,6 +155,28 @@ export interface CreatePollInput {
   closesAt?: string;
 }
 
+// ---- Analytics (per-event, host-only; and "my" — aggregated across every
+// event a user has created). Both endpoints share this shape. -----------------
+export type AnalyticsKey =
+  | 'event_created'
+  | 'invitation_opened'
+  | 'rsvp_going'
+  | 'rsvp_maybe'
+  | 'rsvp_not_going'
+  | 'rsvp_waitlisted'
+  | 'message_sent'
+  | 'media_uploaded';
+
+export interface AnalyticsDailyPoint {
+  date: string;
+  counts: Partial<Record<AnalyticsKey, number>>;
+}
+
+export interface AnalyticsResult {
+  totals: Partial<Record<AnalyticsKey, number>>;
+  daily: AnalyticsDailyPoint[];
+}
+
 // ---- Realtime events (Socket.IO payloads) -----------------------------------
 export interface PresenceUpdate {
   eventId: string;

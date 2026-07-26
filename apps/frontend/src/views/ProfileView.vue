@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { Check, Download, Moon, Sun, ImagePlus, Camera, ShieldCheck, LogIn, LogOut, Bell, BellOff } from 'lucide-vue-next';
+import { Check, Download, Moon, Sun, ImagePlus, Camera, ShieldCheck, LogIn, LogOut, Bell, BellOff, BarChart3 } from 'lucide-vue-next';
 import { useImageUpload } from '@/composables/useImageUpload';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
-import { ApiError } from '@/services/api';
+import { api, ApiError } from '@/services/api';
 import { isColorAvatar } from '@/lib/format';
 import Avatar from '@/components/Avatar.vue';
 import Lightbox from '@/components/Lightbox.vue';
+import AnalyticsSheet from '@/components/AnalyticsSheet.vue';
+import type { AnalyticsKey } from '@/types';
 import {
   isPushSupported,
   getPushSubscription,
@@ -18,6 +20,30 @@ import {
 
 const identity = useIdentityStore();
 const ui = useUiStore();
+
+// Aggregated across every event *this* user has created — never other
+// users' data, so no gating beyond just being signed in.
+const analyticsOpen = ref(false);
+const ANALYTICS_KEYS: AnalyticsKey[] = [
+  'event_created',
+  'invitation_opened',
+  'rsvp_going',
+  'rsvp_maybe',
+  'rsvp_not_going',
+  'rsvp_waitlisted',
+  'message_sent',
+  'media_uploaded',
+];
+const ANALYTICS_LABELS: Record<AnalyticsKey, string> = {
+  event_created: 'Events hosted',
+  invitation_opened: 'Invitation opens',
+  rsvp_going: 'Said "going"',
+  rsvp_maybe: 'Said "maybe"',
+  rsvp_not_going: "Said they can't go",
+  rsvp_waitlisted: 'Waitlisted',
+  message_sent: 'Messages sent',
+  media_uploaded: 'Photos & videos shared',
+};
 
 // Only a real uploaded photo can be enlarged (color tokens can't).
 const avatarIsPhoto = computed(() => !!identity.avatar && !isColorAvatar(identity.avatar));
@@ -278,10 +304,21 @@ async function togglePush(): Promise<void> {
         <Bell v-else :size="18" />
         {{ pushOn ? 'Turn off notifications' : 'Enable notifications' }}
       </button>
+      <button type="button" class="btn-ghost w-full" @click="analyticsOpen = true">
+        <BarChart3 :size="18" /> View analytics
+      </button>
     </section>
 
     <!-- Debug / identity id -->
     <p class="text-center text-xs text-fg-3">ID: {{ identity.id ?? '—' }}</p>
+
+    <AnalyticsSheet
+      v-model="analyticsOpen"
+      title="Your hosting stats"
+      :keys="ANALYTICS_KEYS"
+      :labels="ANALYTICS_LABELS"
+      :load="() => api.users.myAnalytics()"
+    />
 
     <Lightbox
       v-model="avatarLightbox"

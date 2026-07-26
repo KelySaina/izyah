@@ -3,6 +3,7 @@ import {
   createEvent,
   deleteEvent,
   getEvent,
+  getEventAnalytics,
   listEvents,
   updateEvent,
 } from './event.service';
@@ -38,4 +39,10 @@ export async function update(req: Request, res: Response) {
 export async function remove(req: Request, res: Response) {
   await deleteEvent(req.userId!, req.params.id!);
   res.status(204).send();
+}
+
+/** GET /events/:id/analytics — host-only. */
+export async function analytics(req: Request, res: Response) {
+  const result = await getEventAnalytics(req.userId!, req.params.id!);
+  res.json(result);
 }

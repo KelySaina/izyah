@@ -1,5 +1,10 @@
 // Display formatting helpers shared across views/components.
 
+/** 1284 -> "1.3K", 4200000 -> "4.2M". Plain integer below 1,000. */
+export function compactNumber(n: number): string {
+  return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(n);
+}
+
 export function formatDate(iso: string): string {
   return new Intl.DateTimeFormat(undefined, {
     weekday: 'short',

@@ -5,7 +5,7 @@ import { validate } from '../../middleware/validate';
 import { requireIdentity } from '../../middleware/identity';
 import { uuid } from '../../utils/validation';
 import { createUserSchema, updateUserSchema } from './user.schemas';
-import { bootstrap, me, updateMe, getById } from './user.controller';
+import { bootstrap, me, updateMe, getById, myAnalytics } from './user.controller';
 
 export const usersRouter = Router();
 
@@ -13,6 +13,7 @@ export const usersRouter = Router();
 usersRouter.post('/users', validate({ body: createUserSchema }), asyncHandler(bootstrap));
 
 usersRouter.get('/users/me', requireIdentity, asyncHandler(me));
+usersRouter.get('/users/me/analytics', requireIdentity, asyncHandler(myAnalytics));
 usersRouter.patch(
   '/users/me',
   requireIdentity,

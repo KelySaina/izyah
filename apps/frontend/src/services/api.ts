@@ -4,6 +4,7 @@ import type {
   CheckinResultDTO,
   CreateEventInput,
   CreatePollInput,
+  AnalyticsResult,
   EventDTO,
   MediaDTO,
   MeDTO,
@@ -96,6 +97,7 @@ export const api = {
     updateMe: (input: { displayName?: string; avatar?: string }) =>
       request<MeDTO>('/users/me', { method: 'PATCH', body: input }),
     get: (id: string) => request<UserDTO>(`/users/${id}`),
+    myAnalytics: () => request<AnalyticsResult>('/users/me/analytics'),
   },
   events: {
     list: (scope: 'upcoming' | 'mine' | 'past' | 'public' = 'upcoming') =>
@@ -106,6 +108,8 @@ export const api = {
     update: (id: string, input: UpdateEventInput) =>
       request<EventDTO>(`/events/${id}`, { method: 'PATCH', body: input }),
     remove: (id: string) => request<void>(`/events/${id}`, { method: 'DELETE' }),
+    // Host-only — 403s for anyone but the creator.
+    analytics: (id: string) => request<AnalyticsResult>(`/events/${id}/analytics`),
   },
   participants: {
     rsvp: (eventId: string, status: RsvpStatus) =>

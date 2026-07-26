@@ -9,7 +9,7 @@ import {
   updateEventSchema,
   listEventsQuerySchema,
 } from './event.schemas';
-import { create, list, getOne, update, remove } from './event.controller';
+import { create, list, getOne, update, remove, analytics } from './event.controller';
 
 export const eventsRouter = Router();
 
@@ -46,4 +46,12 @@ eventsRouter.delete(
   requireIdentity,
   validate({ params: z.object({ id: uuid }) }),
   asyncHandler(remove),
+);
+
+// Host-only per-event analytics (assertCreator inside the service).
+eventsRouter.get(
+  '/events/:id/analytics',
+  requireIdentity,
+  validate({ params: z.object({ id: uuid }) }),
+  asyncHandler(analytics),
 );

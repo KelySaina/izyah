@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { createUser, getUserById, updateUser, toMeDTO } from './user.service';
+import { createUser, getUserById, updateUser, getMyAnalytics, toMeDTO } from './user.service';
 
 /** POST /users — bootstrap an anonymous identity (no header required). */
 export async function bootstrap(req: Request, res: Response) {
@@ -23,4 +23,11 @@ export async function updateMe(req: Request, res: Response) {
 export async function getById(req: Request, res: Response) {
   const user = await getUserById(req.params.id!);
   res.json(user);
+}
+
+/** GET /users/me/analytics — the caller's own hosting stats, aggregated
+ *  across every event they've created. */
+export async function myAnalytics(req: Request, res: Response) {
+  const result = await getMyAnalytics(req.userId!);
+  res.json(result);
 }

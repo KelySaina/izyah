@@ -19,6 +19,7 @@ import DateBadge from '@/components/DateBadge.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import RsvpButtons from '@/components/RsvpButtons.vue';
 import AttendeeList from '@/components/AttendeeList.vue';
+import AnalyticsSheet from '@/components/AnalyticsSheet.vue';
 import MyTicketCard from '@/components/MyTicketCard.vue';
 import TicketScanner from '@/components/TicketScanner.vue';
 import ShareSheet from '@/components/ShareSheet.vue';
@@ -32,7 +33,7 @@ import { useChatStore } from '@/stores/chat';
 import { useUiStore } from '@/stores/ui';
 import { api, ApiError } from '@/services/api';
 import { formatDate, formatTimeRange } from '@/lib/format';
-import type { RsvpStatus } from '@/types';
+import type { AnalyticsKey, RsvpStatus } from '@/types';
 
 const props = defineProps<{ idOrSlug: string }>();
 
@@ -45,6 +46,27 @@ const loading = ref(true);
 const notFound = ref(false);
 const coverLightbox = ref<number | null>(null);
 const scannerOpen = ref(false);
+const analyticsOpen = ref(false);
+
+const ANALYTICS_KEYS: AnalyticsKey[] = [
+  'invitation_opened',
+  'rsvp_going',
+  'rsvp_maybe',
+  'rsvp_not_going',
+  'rsvp_waitlisted',
+  'message_sent',
+  'media_uploaded',
+];
+const ANALYTICS_LABELS: Record<AnalyticsKey, string> = {
+  event_created: 'Events created',
+  invitation_opened: 'Invitation opens',
+  rsvp_going: 'Said "going"',
+  rsvp_maybe: 'Said "maybe"',
+  rsvp_not_going: "Said they can't go",
+  rsvp_waitlisted: 'Waitlisted',
+  message_sent: 'Messages sent',
+  media_uploaded: 'Photos & videos shared',
+};
 // Best-effort counts for the Chat/Tasks/Polls entry point below — fetched
 // alongside the page, never blocking it, since they're a secondary signal.
 const taskCount = ref(0);
@@ -173,6 +195,13 @@ async function onToggleAttendee(
         </div>
         <div v-if="isCreator" class="flex shrink-0 flex-col gap-1.5">
           <button
+            type="button"
+            class="btn-ghost !gap-1.5 !px-3 !py-1.5 text-xs"
+            @click="analyticsOpen = true"
+          >
+            <BarChart3 :size="14" /> View analytics
+          </button>
+          <button
             v-if="event.attendanceMode === 'TICKET' && !isPast"
             type="button"
             class="btn-ghost !gap-1.5 !px-3 !py-1.5 text-xs"
@@ -286,5 +315,13 @@ async function onToggleAttendee(
     />
 
     <TicketScanner v-if="isCreator" v-model="scannerOpen" :event-id="event.id" />
+    <AnalyticsSheet
+      v-if="isCreator"
+      v-model="analyticsOpen"
+      title="Analytics"
+      :keys="ANALYTICS_KEYS"
+      :labels="ANALYTICS_LABELS"
+      :load="() => events.fetchEventAnalytics(event!.id)"
+    />
   </div>
 </template>

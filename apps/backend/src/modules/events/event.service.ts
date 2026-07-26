@@ -6,7 +6,7 @@ import { isUuid } from '../../utils/validation';
 import { toUserDTO, type UserDTO } from '../users/user.service';
 import { cacheGet, cacheSet, cacheDel, cacheKeys } from '../../lib/cache';
 import { getOnlineCount } from '../../realtime/presence';
-import { track } from '../../analytics/track';
+import { track, eventTotals, eventDailySeries, type AnalyticsEvent, type DailyPoint } from '../../analytics/track';
 import type { CreateEventInput, ListEventsQuery, UpdateEventInput } from './event.schemas';
 
 export interface RsvpCounts {
@@ -272,4 +272,18 @@ export async function deleteEvent(userId: string, eventId: string): Promise<void
   const existing = await assertCreator(eventId, userId);
   await prisma.event.delete({ where: { id: eventId } });
   await cacheDel(cacheKeys.eventPublic(existing.slug), cacheKeys.eventPublic(existing.id));
+}
+
+/** Host-only per-event analytics — RSVP breakdown, invitation opens, chat/media
+ *  activity for THIS event. Never a cross-event or instance-wide figure. */
+export async function getEventAnalytics(
+  userId: string,
+  eventId: string,
+): Promise<{ totals: Record<AnalyticsEvent, number>; daily: DailyPoint[] }> {
+  await assertCreator(eventId, userId);
+  const [eventTotalsResult, daily] = await Promise.all([
+    eventTotals(eventId),
+    eventDailySeries(eventId, 14),
+  ]);
+  return { totals: eventTotalsResult, daily };
 }

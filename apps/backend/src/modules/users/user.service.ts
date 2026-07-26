@@ -1,7 +1,7 @@
 import type { User } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { ApiError } from '../../utils/http';
-import { track } from '../../analytics/track';
+import { track, hostTotals, hostDailySeries, type AnalyticsEvent, type DailyPoint } from '../../analytics/track';
 import type { CreateUserInput, UpdateUserInput } from './user.schemas';
 
 /** Curated palette for auto-assigned anonymous avatars. */
@@ -93,4 +93,18 @@ export async function getUserById(id: string): Promise<UserDTO> {
 export async function updateUser(id: string, input: UpdateUserInput): Promise<MeDTO> {
   const user = await prisma.user.update({ where: { id }, data: input });
   return toMeDTO(user);
+}
+
+/** Self-scoped analytics — aggregated across every event `userId` has
+ *  created. Never another user's data; there's no cross-account view. */
+export async function getMyAnalytics(
+  userId: string,
+): Promise<{ totals: Record<AnalyticsEvent, number>; daily: DailyPoint[] }> {
+  const owned = await prisma.event.findMany({ where: { creatorId: userId }, select: { id: true } });
+  const eventIds = owned.map((e) => e.id);
+  const [totals, daily] = await Promise.all([
+    hostTotals(eventIds),
+    hostDailySeries(eventIds, 14),
+  ]);
+  return { totals, daily };
 }

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { api } from '@/services/api';
 import type {
+  AnalyticsResult,
   AttendeeDTO,
   CheckinResultDTO,
   CreateEventInput,
@@ -96,6 +97,10 @@ export const useEventsStore = defineStore('events', () => {
     return res.ticket;
   }
 
+  async function fetchEventAnalytics(eventId: string): Promise<AnalyticsResult> {
+    return api.events.analytics(eventId);
+  }
+
   function patchAttendeeLocal(userId: string, patch: Partial<AttendeeDTO>): void {
     attendees.value = attendees.value.map((a) => (a.user.id === userId ? { ...a, ...patch } : a));
   }
@@ -138,6 +143,7 @@ export const useEventsStore = defineStore('events', () => {
     fetchEvent,
     fetchAttendees,
     fetchMyTicket,
+    fetchEventAnalytics,
     updateAttendee,
     checkin,
     create,
