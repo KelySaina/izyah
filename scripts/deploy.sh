@@ -3,9 +3,10 @@
 # Izy'Ah — VPS deploy step (run BY the CI/CD workflow over SSH, from ~/izyah).
 #
 # Expects in the environment:
-#   IMAGE_TAG   git SHA to deploy (tag pushed to GHCR by CI)
-#   GHCR_USER   GHCR username for pulling private images
-#   GHCR_TOKEN  PAT with read:packages
+#   IMAGE_TAG      git SHA to deploy (tag pushed to GHCR by CI)
+#   GHCR_USER      GHCR username for pulling private images
+#   GHCR_TOKEN     PAT with read:packages
+#   GITHUB_TOKEN   optional — auths `git fetch` against this (private) repo
 #
 # Flow: sync repo to the SHA -> pull images -> recreate backend+frontend ->
 # poll the API health endpoint -> on failure, roll back to the last good SHA.
@@ -74,8 +75,17 @@ fi
 
 # Bring the working tree exactly to the deployed commit (compose files, scripts).
 # .env and the generated docker-compose.prod.yml are gitignored, so they persist.
+# The repo is private, so an anonymous fetch 401s — authenticate if a token was
+# handed to us (the CI caller passes its own run token; a manual run against a
+# public repo, or one where the box already has git credentials set up, works
+# fine without it).
 log "Syncing repo to ${IMAGE_TAG}"
-git fetch --all --prune --quiet
+if [ -n "${GITHUB_TOKEN:-}" ]; then
+  git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '\n')" \
+    fetch --all --prune --quiet
+else
+  git fetch --all --prune --quiet
+fi
 git checkout --force "$IMAGE_TAG"
 
 PREV_TAG="$(cat "$LAST_GOOD_FILE" 2>/dev/null || true)"

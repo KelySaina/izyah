@@ -173,6 +173,8 @@ jobs:
     needs: build-and-push
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # so the run's own GITHUB_TOKEN can read this (private) repo
     steps:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -186,8 +188,11 @@ jobs:
             set -e
             cd ~/izyah
             # Bootstrap: sync the repo to this commit FIRST, so the correct
-            # compose files + deploy script exist before we run them.
-            git fetch --all --prune
+            # compose files + deploy script exist before we run them. The repo
+            # is private, so fetch needs auth — the run's own token, scoped to
+            # read this repo and expired the moment this job ends.
+            export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}'
+            git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '\n')" fetch --all --prune
             git checkout --force '${{ github.sha }}'
             export IMAGE_TAG='${{ github.sha }}'
             export GHCR_USER='${{ github.repository_owner }}'
