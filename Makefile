@@ -1,9 +1,19 @@
 # Izy'Ah — common tasks. Run `make help` for the list.
 .DEFAULT_GOAL := help
-.PHONY: help up up-build down down-v logs dev-infra ps sync sync-seed \
+.PHONY: help up up-build down down-v logs dev-infra dev-down dev-ps dev-logs ps sync sync-seed \
         backend-install backend-dev backend-test backend-typecheck \
         frontend-install frontend-dev frontend-test frontend-typecheck \
         install typecheck test seed
+
+# Dev-infra file set. docker-compose.local.yml is gitignored and holds this
+# machine's overrides (e.g. remapping the Postgres container to host 5433 when a
+# native Postgres already owns 5432), so every dev-stack command must include it
+# when it exists. Leaving it out doesn't just lose the override — compose then
+# resolves a *different* spec, so a recreate tries to bind the original port and
+# fails, and `config --hash` reports drift that isn't there. scripts/dev-sync.sh
+# follows the same rule; use the dev-* targets below rather than a bare
+# `docker compose -f docker-compose.dev.yml`.
+DEV_COMPOSE := -f docker-compose.dev.yml $(if $(wildcard docker-compose.local.yml),-f docker-compose.local.yml,)
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -36,7 +46,17 @@ ps: ## Show service status
 	docker compose ps
 
 dev-infra: ## Start infra only (Postgres/Redis/MinIO/Adminer) for native dev
-	docker compose -f docker-compose.dev.yml up -d
+	@echo "compose files:$(DEV_COMPOSE)"
+	docker compose $(DEV_COMPOSE) up -d
+
+dev-down: ## Stop the dev infra (keep data)
+	docker compose $(DEV_COMPOSE) down
+
+dev-ps: ## Show dev infra status + published ports
+	docker compose $(DEV_COMPOSE) ps
+
+dev-logs: ## Tail dev infra logs
+	docker compose $(DEV_COMPOSE) logs -f
 
 ## ---- Backend ----
 backend-install: ## Install backend deps

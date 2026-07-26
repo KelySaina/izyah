@@ -259,6 +259,13 @@ Two notes on why it does what it does:
   than suggesting `migrate reset`, which would wipe your local data. It prompts first,
   because baselining runs `db push --accept-data-loss` to square the schema.
 
+If you keep a `docker-compose.local.yml`, **every** dev-stack command needs it, not just
+`dev-sync.sh` — use `make dev-infra` / `dev-down` / `dev-ps` / `dev-logs`, which include it
+automatically when the file exists. A bare `docker compose -f docker-compose.dev.yml …`
+resolves a *different* spec: you lose the override (so a recreate tries to bind the original
+host port and fails with `address already in use`) and `config --hash` reports drift that
+isn't real.
+
 Anything it rewrites is backed up alongside the original as `<file>.bak-<timestamp>`.
 
 ## Environment variables
