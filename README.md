@@ -1,34 +1,70 @@
 # Izy'Ah — events, together
 
 **Izy'Ah** is an attendee-first event platform. It's the easiest way to create, share,
-join and experience events — before, during and after they happen. There are no
-organizer/attendee tiers and **no login screens**: every visitor gets a persistent
-anonymous identity automatically and can immediately create or join events.
+join and experience events — before, during and after they happen. There are **no login
+screens and no signup form**: every visitor gets a persistent identity automatically and
+can immediately create or join events. Creating an event makes you its host, with
+host-only tools (edit, ticket scanning, analytics) scoped to that one event — there's
+still no separate "organizer account" tier or subscription plan.
 
 This repository is a production-ready **SaaS foundation** (monorepo) that runs end-to-end
-with a single `docker compose up`.
+with a single `docker compose up`, and a one-shot `./setup.sh` for a real VPS.
 
 ---
 
 ## Table of contents
 
-1. [Architecture overview](#architecture-overview)
-2. [Architecture diagram](#architecture-diagram)
-3. [Project structure](#project-structure)
-4. [Tech stack](#tech-stack)
-5. [Quick start (Docker)](#quick-start-docker)
-6. [Local development (hot reload)](#local-development-hot-reload)
-7. [Environment variables](#environment-variables)
-8. [Docker commands](#docker-commands)
-9. [Database &amp; Prisma](#database--prisma)
-10. [API &amp; realtime](#api--realtime)
-11. [Identity model](#identity-model)
-12. [Testing](#testing)
-13. [PWA &amp; future mobile (Capacitor)](#pwa--future-mobile-capacitor)
-14. [Security](#security)
-15. [Analytics](#analytics)
-16. [Roadmap](#roadmap)
-17. [Deployment](#deployment)
+1. [Features](#features)
+2. [Architecture overview](#architecture-overview)
+3. [Architecture diagram](#architecture-diagram)
+4. [Project structure](#project-structure)
+5. [Tech stack](#tech-stack)
+6. [Quick start (Docker)](#quick-start-docker)
+7. [Local development (hot reload)](#local-development-hot-reload)
+8. [Environment variables](#environment-variables)
+9. [Docker commands](#docker-commands)
+10. [Database &amp; Prisma](#database--prisma)
+11. [API &amp; realtime](#api--realtime)
+12. [Identity model](#identity-model)
+13. [Testing](#testing)
+14. [PWA &amp; future mobile (Capacitor)](#pwa--future-mobile-capacitor)
+15. [Security](#security)
+16. [Analytics](#analytics)
+17. [Roadmap](#roadmap)
+18. [Deployment](#deployment)
+
+---
+
+## Features
+
+- **Anonymous-first identity, upgradable.** Start using the app with zero signup; tap
+  "Save your account" any time to link a real email/Google identity (OIDC via Logto) for
+  account recovery and cross-device sync — your existing events and history carry over.
+  See [Identity model](#identity-model).
+- **Events.** Cover photo, description, date/time, location (interactive map + address
+  search via OpenStreetMap), capacity with automatic waitlist + promotion, and
+  public (discoverable) / private (link-only) visibility.
+- **RSVP.** Going / maybe / not going with live counts and avatars; a freed-up spot
+  auto-promotes the longest-waiting person off the waitlist.
+- **Attendance & ticketing.** Each event can optionally run in **Min PAF** mode (an
+  in-person contribution the host marks as paid) or **Ticket** mode (attendees get a QR
+  code, the host scans it at the door — or uses a manual check-in toggle as a fallback).
+  This is lightweight, host-run *tracking*, not a payment processor: no money moves
+  through the app.
+- **Realtime chat** with live presence ("N online") and typing indicators.
+- **Claimable tasks** — a shared to-do list attendees can claim, release, or mark done
+  (with one-tap "potluck" quick-adds like 🥤 Drinks / 🍰 Dessert); the host is notified
+  on every state change.
+- **Polls** for group decisions, with live results.
+- **Media gallery** — photo/video uploads (MinIO-backed), a lightbox, and a dedicated
+  "recap" view once the event is past.
+- **Notifications** — an in-app bell (with a search filter) plus browser/OS Web Push,
+  covering RSVPs (going, maybe, and can't-go), waitlist promotion, tasks, and polls.
+- **Host analytics.** A per-event dashboard (RSVP breakdown, invitation opens, messages,
+  media) and an aggregated "your hosting stats" view in Profile across every event you've
+  created — both with live, auto-refreshing 14-day bar charts, not just raw counters.
+- **PWA** — installable, offline shell, dark/light theme, calendar (.ics) export, and a
+  native share sheet.
 
 ---
 
@@ -39,15 +75,16 @@ backing services wired together with Docker Compose and fronted by Traefik.
 
 Key decisions and the *why* behind them:
 
-- **Passwordless anonymous identity.** On first visit the frontend creates a `User` on the
-  backend and stores its `id` locally. Every request carries `X-User-ID`. This removes all
-  onboarding friction while keeping a real, server-side identity we can later *upgrade*
-  (email / Google / phone) without a destructive migration — the `users` table already has
-  nullable `email`, `phone`, `googleId`, `isClaimed` columns.
-- **Feature-module backend.** Each domain (`users`, `events`, `participants`, `messages`,
-  `media`, `tasks`, `polls`, `notifications`) is a self-contained module of
+- **Passwordless-first identity, with real account-linking shipped.** On first visit the
+  frontend mints an anonymous identity (`POST /auth/anonymous`) and stores a *signed*
+  session token — every request carries it as `Authorization: Bearer <token>`, never a
+  raw user id (a leaked id alone can't be replayed). Tapping "Save your account" upgrades
+  the same identity via OIDC (Logto): email/Google sign-in, recovery, cross-device sync.
+  See [Identity model](#identity-model) and [SETUP-AUTH.md](SETUP-AUTH.md).
+- **Feature-module backend.** Each domain (`auth`, `users`, `events`, `participants`,
+  `messages`, `media`, `tasks`, `polls`, `notifications`) is a self-contained module of
   `*.schemas.ts` (Zod) → `*.service.ts` (Prisma + business logic) → `*.controller.ts`
-  (HTTP glue) → `*.routes.ts` (Express router). This keeps V2/V3 features additive.
+  (HTTP glue) → `*.routes.ts` (Express router). This keeps features additive.
 - **REST + WebSocket split.** CRUD and reads are REST; chat, presence, typing and live RSVP
   tallies are Socket.IO. The Socket.IO **Redis adapter** means we can scale the backend
   horizontally and still broadcast across instances.
@@ -68,7 +105,7 @@ Key decisions and the *why* behind them:
                                   │            Browser / PWA       │
                                   │   Vue 3 + Pinia + Service W.    │
                                   └───────────────┬───────────────┘
-                                    HTTP + WebSocket (X-User-ID)
+                                 HTTP + WebSocket (Bearer token)
                                                   │
                                           ┌───────▼────────┐
                                           │    Traefik     │  :80 / :443
@@ -112,8 +149,8 @@ izyah/
     │   └── src/
     │       ├── config/           # validated env
     │       ├── lib/              # prisma, redis, minio, cache, logger
-    │       ├── middleware/       # identity (X-User-ID), validate, error, rateLimit
-    │       ├── modules/          # users, events, participants, messages,
+    │       ├── middleware/       # identity (Bearer token), validate, error, rateLimit
+    │       ├── modules/          # auth, users, events, participants, messages,
     │       │                     #   media, tasks, polls, notifications, health
     │       ├── realtime/         # Socket.IO server, presence, chat gateway
     │       ├── queue/            # BullMQ queues + workers
@@ -122,7 +159,7 @@ izyah/
     └── frontend/                 # Vue 3 + Vite + Tailwind + Pinia PWA (izyah-frontend)
         └── src/
             ├── services/         # api, identity, socket + native abstraction layers
-            ├── stores/           # Pinia: identity, events, chat, ui
+            ├── stores/           # Pinia: identity, events, chat, notifications, ui
             ├── lib/              # formatting, calendar (.ics) export
             ├── components/       # presentational + feature panels
             └── views/            # routed pages
@@ -138,6 +175,10 @@ izyah/
 | Realtime | Socket.IO (+ Redis adapter)                                    |
 | Cache/MQ | Redis 7 (cache, presence, rate-limit store, BullMQ broker)     |
 | Storage  | MinIO (S3-compatible)                                          |
+| Auth     | Logto (OIDC, optional) + signed HMAC session tokens             |
+| Maps     | Leaflet + OpenStreetMap/Nominatim (keyless)                     |
+| Tickets  | `qrcode` (generate) + `qr-scanner` (camera-based scan)          |
+| Push     | Web Push API (VAPID)                                           |
 | Proxy    | Traefik v3                                                     |
 | DB admin | Adminer                                                        |
 | Testing  | Jest + Supertest (backend); Vitest + Playwright (frontend)     |
@@ -206,6 +247,10 @@ full list. Highlights:
 | `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX` | API rate limit                                 |
 | `SEED_ON_START`                            | Seed demo data on backend boot                 |
 | `VITE_API_URL`, `VITE_SOCKET_URL`        | Browser-facing API/WS URLs (build-time)        |
+| `SESSION_SECRET`                           | HMAC key for anonymous session tokens — **must** be overridden in prod |
+| `OIDC_ISSUER` / `OIDC_CLIENT_ID`, `VITE_OIDC_*` | Logto account-linking; unset = anonymous-only ([SETUP-AUTH.md](SETUP-AUTH.md)) |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`   | Web Push keys (`npx web-push generate-vapid-keys`); unset = no push delivery |
+| `ANALYTICS_ENABLED`                        | Toggle the Redis-backed analytics counters      |
 
 ## Docker commands
 
@@ -232,16 +277,20 @@ npm run db:seed       # idempotent demo data
 npm run db:studio     # Prisma Studio GUI
 ```
 
-> The Docker entrypoint applies committed migrations if present, otherwise falls back to
-> `prisma db push` so a fresh checkout boots with zero setup. For real environments, commit
-> migrations (`npm run db:migrate`) and the entrypoint will `migrate deploy` them.
+> The Docker entrypoint prefers `prisma migrate deploy` when migrations are committed, and
+> is **self-healing**: on an existing database that predates migrations (`P3005`), it
+> baselines automatically (`db push` to catch up, then marks every migration applied) and
+> tolerates being re-run mid-baseline after a crash (`P3008`). A fresh checkout with no
+> migrations at all falls back to plain `db push`. See
+> [`apps/backend/docker-entrypoint.sh`](apps/backend/docker-entrypoint.sh).
 
 ## API & realtime
 
-- REST base: `/api` (see Swagger at `/docs`). All endpoints except `POST /api/users` and the
-  public event read expect an `X-User-ID` header.
+- REST base: `/api` (see Swagger at `/docs`). All endpoints except `POST /api/auth/anonymous`,
+  `POST /api/users` (bootstrap), and the public event read expect
+  `Authorization: Bearer <token>`.
 - Health: `GET /health` → `{ "status": "ok" }`; `GET /health/ready` checks DB + Redis.
-- WebSocket: Socket.IO at `/socket.io`, authenticated by `auth: { userId }`.
+- WebSocket: Socket.IO at `/socket.io`, authenticated by `auth: { token }` in the handshake.
 
 Realtime events:
 
@@ -256,13 +305,23 @@ Realtime events:
 
 ## Identity model
 
-No registration. `identityService` bootstraps a `User` on first visit, persists the id via
-the `storageService` abstraction, and `session.ts` holds it in memory for the API client and
-socket handshake. The backend `identity` middleware resolves `X-User-ID`, touches
-`lastSeenAt`, and attaches `req.userId`/`req.user`. `requireIdentity` guards protected routes.
+No registration screen, but a real two-credential model underneath (see
+[SETUP-AUTH.md](SETUP-AUTH.md) for full setup):
 
-Account-linking (email/Google/phone) is intentionally **not** implemented yet, but the data
-model and identity flow are ready for it.
+| Credential | Minted when | Verified by | Purpose |
+| --- | --- | --- | --- |
+| **Session token** (HMAC) | first visit (`POST /auth/anonymous`) | backend, with `SESSION_SECRET` | frictionless anonymous identity |
+| **OIDC token** (JWT) | user taps "Save your account" | Logto JWKS | links/recovers a real account |
+
+Both travel as `Authorization: Bearer <token>` — for REST and in the Socket.IO handshake
+(`auth.token`) alike. `identityService` mints/persists the token via the `storageService`
+abstraction; `session.ts` holds it in memory for the API client and socket connection. The
+backend `identity` middleware verifies the bearer token, touches `lastSeenAt`, and attaches
+`req.userId`/`req.user`; `requireIdentity` guards protected routes.
+
+Account-linking (email/Google via OIDC/Logto) is **shipped** but inert until `OIDC_ISSUER`
+(backend) and `VITE_OIDC_*` (frontend) are configured — until then, the "Save your account"
+button simply doesn't render and the app runs anonymous-only.
 
 ## Testing
 
@@ -315,20 +374,50 @@ Icons: SVG icons ship in `public/icons`. To generate raster PWA assets, run
 ## Analytics
 
 Privacy-friendly by design: only aggregate counters (event creation, invitation opens, RSVP
-conversion, attendance, messages, uploads) are recorded in Redis — no PII, no cross-site
-identifiers. See `src/analytics/track.ts`. A future job can ship aggregates to a warehouse.
+conversion, messages, uploads) are recorded in Redis, bucketed both lifetime and per-day —
+no PII, no cross-site identifiers. See `apps/backend/src/analytics/track.ts`.
+
+Two user-facing dashboards read from these counters, both self/creator-scoped (never another
+user's data) and rendered as live 14-day bar charts rather than bare numbers:
+
+- **Per-event** (`GET /events/:id/analytics`) — host-only, opened from "View analytics" on
+  the event page.
+- **Aggregated across every event you've created** (`GET /users/me/analytics`) — "View
+  analytics" in Profile.
+
+Both poll every few seconds while open, so numbers update without closing/reopening the
+sheet. A future job can still ship the raw Redis aggregates to a warehouse.
 
 ## Roadmap
 
-- **V1 (MVP, shipped here):** anonymous identity, profile, dashboard, event CRUD + public
-  share URLs, RSVP with live counts/avatars, realtime chat (presence + typing), calendar
-  export & upcoming view.
-- **V2 (scaffolded here):** polls, claimable tasks, media albums (MinIO + BullMQ worker),
-  notifications (BullMQ).
-- **V3 (prepared, not implemented):** AI features (descriptions, schedules, checklists,
-  summaries, recommendations) as BullMQ jobs on a dedicated AI worker.
+- **V1 (shipped):** anonymous-first identity + OIDC account-linking, profile, dashboard,
+  event CRUD + public share URLs, RSVP with live counts/avatars/waitlist, realtime chat
+  (presence + typing), calendar export & upcoming view.
+- **V2 (shipped):** claimable tasks, polls, media albums (MinIO + BullMQ worker),
+  attendance & ticketing (Min PAF / QR ticket + scanner), notifications (in-app + Web
+  Push, BullMQ), host analytics dashboards.
+- **V3 (prepared, not implemented):** merging an anonymous user's events into a
+  pre-existing account on first sign-in (currently the anonymous row is abandoned); AI
+  features (descriptions, schedules, checklists, summaries, recommendations) as BullMQ
+  jobs on a dedicated AI worker; shipping Redis analytics aggregates to a warehouse.
 
 ## Deployment
+
+**One-shot VPS provisioning:** `./setup.sh` — idempotent, prompts for what it needs if run
+with no flags. Picks up TLS automatically:
+
+```bash
+./setup.sh --domain izyah.example.com --email you@example.com   # real domain, Let's Encrypt
+./setup.sh --nip --email you@example.com                        # no domain — free HTTPS via nip.io
+./setup.sh --http                                                # plain HTTP on the IP — testing only
+```
+
+**CI/CD** ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)): every push to
+`main` runs backend + frontend tests as a gate, then on green builds and pushes images to
+`ghcr.io`, then SSHes to the VPS and runs [`scripts/deploy.sh`](scripts/deploy.sh) — pull,
+recreate, health-gate, and **automatically roll back** on a failed health check.
+
+Doing it by hand instead:
 
 1. Point DNS for your app + API subdomains at the host.
 2. Set real secrets in `.env` and production `VITE_API_URL`/`VITE_SOCKET_URL`.
@@ -340,6 +429,9 @@ identifiers. See `src/analytics/track.ts`. A future job can ship aggregates to a
    S3 credentials) for durability and backups.
 5. Run the backend and a separate worker process (`npm run worker`) for horizontal scaling;
    the Socket.IO Redis adapter + sticky sessions (already labeled) handle multi-replica.
+
+Optional: [SETUP-AUTH.md](SETUP-AUTH.md) to provision Logto and enable account-linking —
+the app runs anonymous-only without it.
 
 ---
 
