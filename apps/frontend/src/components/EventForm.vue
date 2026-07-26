@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { Globe, Lock, Ban, Coins, Ticket } from 'lucide-vue-next';
 import ImagePicker from '@/components/ImagePicker.vue';
 import LocationPicker from '@/components/LocationPicker.vue';
@@ -146,6 +146,18 @@ const missing = computed(() => ({
     (form.attendanceMode === 'TICKET' && !form.ticketPrice.trim()),
 }));
 const anyMissing = computed(() => Object.values(missing.value).some(Boolean));
+
+// Themed (brand gold, not a generic red) outline for a required field that's
+// still empty — so it's visible at a glance the moment its tab opens, not
+// only via the tab-badge dot.
+const NEEDS_ATTENTION = 'border-brand-500/50 ring-2 ring-brand-500/20';
+
+const titleInput = ref<HTMLInputElement | null>(null);
+// Land the cursor straight in the first empty required field on open — for a
+// fresh create that's always the title, since Basics is the default tab.
+onMounted(() => {
+  if (!form.title.trim()) titleInput.value?.focus();
+});
 
 const visibilityLabel = computed(
   () => visibilityOptions.find((o) => o.value === form.visibility)?.label ?? 'Not chosen',
@@ -351,7 +363,14 @@ function onSubmit(): void {
 
       <div>
         <label class="label" for="ev-title">Title *</label>
-        <input id="ev-title" v-model="form.title" class="input" placeholder="Rooftop dinner party" />
+        <input
+          id="ev-title"
+          ref="titleInput"
+          v-model="form.title"
+          class="input"
+          :class="!form.title.trim() ? NEEDS_ATTENTION : ''"
+          placeholder="Rooftop dinner party"
+        />
       </div>
 
       <div>
@@ -370,7 +389,13 @@ function onSubmit(): void {
     <div v-show="activeTab === 'when'" class="space-y-4">
       <div>
         <label class="label" for="ev-date">Date *</label>
-        <input id="ev-date" v-model="form.date" type="date" class="input" />
+        <input
+          id="ev-date"
+          v-model="form.date"
+          type="date"
+          class="input"
+          :class="!form.date ? NEEDS_ATTENTION : ''"
+        />
       </div>
 
       <div class="grid grid-cols-2 gap-3">
@@ -443,6 +468,7 @@ function onSubmit(): void {
             type="text"
             inputmode="numeric"
             class="input"
+            :class="!form.minPafAmount.trim() ? NEEDS_ATTENTION : ''"
             placeholder="e.g. 20000"
           />
         </div>
@@ -454,6 +480,7 @@ function onSubmit(): void {
             type="text"
             inputmode="numeric"
             class="input"
+            :class="!form.ticketPrice.trim() ? NEEDS_ATTENTION : ''"
             placeholder="e.g. 20000"
           />
         </div>
@@ -481,7 +508,9 @@ function onSubmit(): void {
             :class="
               form.visibility === opt.value
                 ? 'border-brand-500 bg-brand-500/10'
-                : 'border-line/15 bg-surface-2 hover:border-line/30'
+                : !form.visibility
+                  ? NEEDS_ATTENTION + ' bg-surface-2'
+                  : 'border-line/15 bg-surface-2 hover:border-line/30'
             "
             :aria-pressed="form.visibility === opt.value"
             @click="form.visibility = opt.value"
