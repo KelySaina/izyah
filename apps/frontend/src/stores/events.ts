@@ -84,12 +84,27 @@ export const useEventsStore = defineStore('events', () => {
   }
 
   async function setRsvp(eventId: string, status: RsvpStatus): Promise<RsvpStatus> {
-    const res = await api.participants.rsvp(eventId, status);
-    counts.value = res.counts;
-    if (current.value?.id === eventId) {
-      current.value = { ...current.value, viewerStatus: res.status, counts: res.counts };
+    // Optimistic: flip the selected button immediately — that's the feedback
+    // a tap needs on a slow connection. Counts are left alone until the real
+    // response lands (only the backend knows capacity/waitlist placement),
+    // then rolled back together with viewerStatus if the request fails.
+    const isCurrent = current.value?.id === eventId;
+    const previous = isCurrent ? { viewerStatus: current.value!.viewerStatus, counts: counts.value } : null;
+    if (isCurrent) current.value = { ...current.value!, viewerStatus: status };
+    try {
+      const res = await api.participants.rsvp(eventId, status);
+      counts.value = res.counts;
+      if (current.value?.id === eventId) {
+        current.value = { ...current.value, viewerStatus: res.status, counts: res.counts };
+      }
+      return res.status;
+    } catch (err) {
+      if (previous && current.value?.id === eventId) {
+        current.value = { ...current.value, viewerStatus: previous.viewerStatus };
+        counts.value = previous.counts;
+      }
+      throw err;
     }
-    return res.status;
   }
 
   async function fetchMyTicket(eventId: string): Promise<MyTicketDTO | null> {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { ListChecks, Plus, Check, RotateCcw } from 'lucide-vue-next';
-import { api, ApiError } from '@/services/api';
+import { api, apiErrorMessage } from '@/services/api';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
 import Avatar from '@/components/Avatar.vue';
@@ -22,10 +22,10 @@ const loading = ref(true);
 const newTitle = ref('');
 const adding = ref(false);
 const quickAdding = ref<string | null>(null);
-
-function errMsg(err: unknown): string {
-  return err instanceof ApiError ? err.message : 'Something went wrong';
-}
+// Per-task in-flight marker for claim/release/done — real optimistic content
+// (a fabricated assignee avatar/name) isn't worth the type-safety risk here,
+// but a visible pending state is what actually fixes "tap felt unresponsive."
+const pendingTaskId = ref<string | null>(null);
 
 function replaceTask(updated: TaskDTO): void {
   const i = tasks.value.findIndex((t) => t.id === updated.id);
@@ -36,7 +36,7 @@ onMounted(async () => {
   try {
     tasks.value = await api.tasks.list(props.eventId);
   } catch (err) {
-    ui.toast(errMsg(err), 'error');
+    ui.toast(apiErrorMessage(err), 'error');
   } finally {
     loading.value = false;
   }
@@ -51,7 +51,7 @@ async function addTask(): Promise<void> {
     tasks.value.push(task);
     newTitle.value = '';
   } catch (err) {
-    ui.toast(errMsg(err), 'error');
+    ui.toast(apiErrorMessage(err), 'error');
   } finally {
     adding.value = false;
   }
@@ -67,36 +67,53 @@ async function quickAdd(title: string): Promise<void> {
   try {
     tasks.value.push(await api.tasks.create(props.eventId, title));
   } catch (err) {
-    ui.toast(errMsg(err), 'error');
+    ui.toast(apiErrorMessage(err), 'error');
   } finally {
     quickAdding.value = null;
   }
 }
 
 async function claim(task: TaskDTO): Promise<void> {
+  if (pendingTaskId.value) return;
+  pendingTaskId.value = task.id;
   try {
     replaceTask(await api.tasks.claim(props.eventId, task.id));
   } catch (err) {
-    ui.toast(errMsg(err), 'error');
+    ui.toast(apiErrorMessage(err), 'error');
+  } finally {
+    pendingTaskId.value = null;
   }
 }
 
 async function release(task: TaskDTO): Promise<void> {
+  const ok = await ui.confirm({
+    title: 'Release task?',
+    message: `"${task.title}" will go back to the open pool for anyone to claim.`,
+    confirmText: 'Release',
+  });
+  if (!ok || pendingTaskId.value) return;
+  pendingTaskId.value = task.id;
   try {
     replaceTask(await api.tasks.release(props.eventId, task.id));
   } catch (err) {
-    ui.toast(errMsg(err), 'error');
+    ui.toast(apiErrorMessage(err), 'error');
+  } finally {
+    pendingTaskId.value = null;
   }
 }
 
 async function toggleDone(task: TaskDTO): Promise<void> {
+  if (pendingTaskId.value) return;
+  pendingTaskId.value = task.id;
   const done = task.status === 'DONE';
   try {
     replaceTask(
       await api.tasks.update(props.eventId, task.id, { status: done ? 'OPEN' : 'DONE' }),
     );
   } catch (err) {
-    ui.toast(errMsg(err), 'error');
+    ui.toast(apiErrorMessage(err), 'error');
+  } finally {
+    pendingTaskId.value = null;
   }
 }
 </script>
@@ -120,6 +137,7 @@ async function toggleDone(task: TaskDTO): Promise<void> {
       <input
         v-model="newTitle"
         class="input flex-1"
+        maxlength="140"
         placeholder="Add a task…"
         aria-label="New task title"
       />
@@ -146,7 +164,8 @@ async function toggleDone(task: TaskDTO): Promise<void> {
       <li
         v-for="task in tasks"
         :key="task.id"
-        class="card flex items-center gap-3 px-3 py-2.5"
+        class="card flex items-center gap-3 px-3 py-2.5 transition"
+        :class="pendingTaskId === task.id ? 'opacity-60' : ''"
       >
         <span
           class="flex-1 text-sm"
@@ -160,6 +179,7 @@ async function toggleDone(task: TaskDTO): Promise<void> {
           v-if="task.assignedUserId === null"
           type="button"
           class="btn-ghost px-3 py-1.5 text-xs"
+          :disabled="pendingTaskId === task.id"
           @click="claim(task)"
         >
           Claim
@@ -171,13 +191,19 @@ async function toggleDone(task: TaskDTO): Promise<void> {
           <button
             type="button"
             class="btn-ghost !px-2.5 !py-1.5 text-xs"
+            :disabled="pendingTaskId === task.id"
             :aria-label="task.status === 'DONE' ? 'Reopen task' : 'Mark task done'"
             @click="toggleDone(task)"
           >
             <RotateCcw v-if="task.status === 'DONE'" :size="14" />
             <template v-else><Check :size="14" :stroke-width="2.5" /> Done</template>
           </button>
-          <button type="button" class="btn-ghost !px-2.5 !py-1.5 text-xs" @click="release(task)">
+          <button
+            type="button"
+            class="btn-ghost !px-2.5 !py-1.5 text-xs"
+            :disabled="pendingTaskId === task.id"
+            @click="release(task)"
+          >
             Release
           </button>
         </template>

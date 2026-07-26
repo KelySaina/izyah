@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { BarChart3, Plus, Minus } from 'lucide-vue-next';
-import { api, ApiError } from '@/services/api';
+import { api, apiErrorMessage } from '@/services/api';
 import { useUiStore } from '@/stores/ui';
 import EmptyState from '@/components/EmptyState.vue';
 import type { PollDTO } from '@/types';
@@ -17,10 +17,7 @@ const showForm = ref(false);
 const question = ref('');
 const options = ref<string[]>(['', '']);
 const creating = ref(false);
-
-function errMsg(err: unknown): string {
-  return err instanceof ApiError ? err.message : 'Something went wrong';
-}
+const MAX_OPTIONS = 10;
 
 function replacePoll(updated: PollDTO): void {
   const i = polls.value.findIndex((p) => p.id === updated.id);
@@ -35,13 +32,14 @@ onMounted(async () => {
   try {
     polls.value = await api.polls.list(props.eventId);
   } catch (err) {
-    ui.toast(errMsg(err), 'error');
+    ui.toast(apiErrorMessage(err), 'error');
   } finally {
     loading.value = false;
   }
 });
 
 function addOption(): void {
+  if (options.value.length >= MAX_OPTIONS) return;
   options.value.push('');
 }
 
@@ -73,17 +71,24 @@ async function createPoll(): Promise<void> {
     polls.value.push(poll);
     resetForm();
   } catch (err) {
-    ui.toast(errMsg(err), 'error');
+    ui.toast(apiErrorMessage(err), 'error');
   } finally {
     creating.value = false;
   }
 }
 
 async function vote(poll: PollDTO, optionId: string): Promise<void> {
+  if (poll.viewerOptionId === optionId) return;
+  // Optimistic: snap the selection border to the tapped option immediately;
+  // vote counts stay put until the real tally lands, then roll back the
+  // selection (not the counts, which were never touched) on failure.
+  const previousOptionId = poll.viewerOptionId;
+  replacePoll({ ...poll, viewerOptionId: optionId });
   try {
     replacePoll(await api.polls.vote(props.eventId, poll.id, optionId));
   } catch (err) {
-    ui.toast(errMsg(err), 'error');
+    replacePoll({ ...poll, viewerOptionId: previousOptionId });
+    ui.toast(apiErrorMessage(err), 'error');
   }
 }
 </script>
@@ -110,16 +115,21 @@ async function vote(poll: PollDTO, optionId: string): Promise<void> {
             id="poll-question"
             v-model="question"
             class="input"
+            maxlength="200"
             placeholder="What should we decide?"
           />
         </div>
 
         <div class="space-y-2">
-          <span class="label">Options</span>
+          <div class="flex items-center justify-between">
+            <span class="label !mb-0">Options</span>
+            <span class="text-xs text-fg-3">{{ options.length }} / {{ MAX_OPTIONS }}</span>
+          </div>
           <div v-for="(_, i) in options" :key="i" class="flex gap-2">
             <input
               v-model="options[i]"
               class="input flex-1"
+              maxlength="80"
               :placeholder="`Option ${i + 1}`"
               :aria-label="`Option ${i + 1}`"
             />
@@ -133,7 +143,12 @@ async function vote(poll: PollDTO, optionId: string): Promise<void> {
               <Minus :size="16" />
             </button>
           </div>
-          <button type="button" class="btn-ghost text-xs" @click="addOption">
+          <button
+            v-if="options.length < MAX_OPTIONS"
+            type="button"
+            class="btn-ghost text-xs"
+            @click="addOption"
+          >
             <Plus :size="14" /> Add option
           </button>
         </div>
@@ -155,7 +170,7 @@ async function vote(poll: PollDTO, optionId: string): Promise<void> {
 
     <ul v-else class="space-y-3">
       <li v-for="poll in polls" :key="poll.id" class="card space-y-3 p-4">
-        <h3 class="text-sm font-semibold text-fg">{{ poll.question }}</h3>
+        <h3 class="text-sm font-bold text-fg">{{ poll.question }}</h3>
 
         <ul class="space-y-2">
           <li v-for="option in poll.options" :key="option.id">

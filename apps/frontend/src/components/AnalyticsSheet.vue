@@ -84,7 +84,7 @@ function close(): void {
             </h2>
             <button
               type="button"
-              class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-fg-2 transition hover:bg-surface-2"
+              class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-fg-2 transition hover:bg-surface-2"
               aria-label="Close"
               @click="close"
             >

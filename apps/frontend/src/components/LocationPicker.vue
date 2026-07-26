@@ -242,7 +242,7 @@ function clearPin(): void {
       <div ref="el" class="h-full w-full overflow-hidden rounded-xl border border-line/10" />
       <button
         type="button"
-        class="absolute right-3 top-3 z-[1100] grid h-9 w-9 place-items-center rounded-full bg-black/50 text-white transition hover:bg-black/70"
+        class="absolute right-3 top-3 z-[1100] grid h-11 w-11 place-items-center rounded-full bg-black/50 text-white transition hover:bg-black/70"
         :aria-label="isFull ? 'Exit fullscreen' : 'Fullscreen map'"
         @click="toggleFull"
       >

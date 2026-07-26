@@ -100,17 +100,19 @@ function onTouchEnd(e: TouchEvent): void {
         <!-- Media -->
         <img
           v-if="current.type === 'IMAGE'"
+          :key="current.url"
           :src="current.url"
           alt="Event photo"
-          class="max-h-[85vh] max-w-[92vw] select-none object-contain"
+          class="max-h-[85vh] max-w-[92vw] animate-pop-in select-none object-contain"
         />
         <video
           v-else
+          :key="current.url"
           :src="current.url"
           controls
           autoplay
           playsinline
-          class="max-h-[85vh] max-w-[92vw] object-contain"
+          class="max-h-[85vh] max-w-[92vw] animate-pop-in object-contain"
         />
 
         <!-- Next -->

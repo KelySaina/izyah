@@ -51,7 +51,12 @@ function readDraft(): Partial<FormDraft> | null {
 
 const draft = readDraft();
 
-const emit = defineEmits<{ (e: 'submit', value: CreateEventInput): void }>();
+const emit = defineEmits<{
+  (e: 'submit', value: CreateEventInput): void;
+  /** Fires whenever the form's fields differ from where they started, so a
+   *  caller (EditEventView) can warn before navigating away mid-edit. */
+  (e: 'dirty', value: boolean): void;
+}>();
 
 const ui = useUiStore();
 
@@ -124,6 +129,16 @@ if (props.draftKey) {
   );
 }
 
+// Baseline snapshot (post draft-restore) so callers can be warned before
+// navigating away with unsaved changes — most useful on Edit, where there's
+// no draft-restore safety net (see readDraft() above).
+const initialSnapshot = JSON.stringify(form);
+watch(
+  form,
+  (value) => emit('dirty', JSON.stringify(value) !== initialSnapshot),
+  { deep: true },
+);
+
 type Tab = 'basics' | 'when' | 'where' | 'options';
 const tabs: { key: Tab; label: string }[] = [
   { key: 'basics', label: 'Basics' },
@@ -158,6 +173,12 @@ const titleInput = ref<HTMLInputElement | null>(null);
 onMounted(() => {
   if (!form.title.trim()) titleInput.value?.focus();
 });
+
+// Only steer NEW events away from a past date — an existing (possibly past,
+// e.g. a recap) event being edited for other reasons shouldn't get flagged
+// invalid just for showing the date it already has.
+const todayStr = new Date().toISOString().slice(0, 10);
+const minDate = computed(() => (props.initial ? undefined : todayStr));
 
 const visibilityLabel = computed(
   () => visibilityOptions.find((o) => o.value === form.visibility)?.label ?? 'Not chosen',
@@ -196,6 +217,11 @@ function onSubmit(): void {
   if (missing.value.where) {
     activeTab.value = 'where';
     ui.toast('A location is required', 'error');
+    return;
+  }
+  if (form.startTime && form.endTime && form.endTime <= form.startTime) {
+    activeTab.value = 'when';
+    ui.toast('End time must be after the start time', 'error');
     return;
   }
   if (missing.value.options) {
@@ -394,6 +420,7 @@ function onSubmit(): void {
           v-model="form.date"
           type="date"
           class="input"
+          :min="minDate"
           :class="!form.date ? NEEDS_ATTENTION : ''"
         />
       </div>

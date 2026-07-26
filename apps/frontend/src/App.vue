@@ -15,6 +15,7 @@ import Avatar from '@/components/Avatar.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import ChatSheet from '@/components/ChatSheet.vue';
 import NotificationsSheet from '@/components/NotificationsSheet.vue';
+import UnreadBadge from '@/components/UnreadBadge.vue';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
 import { useChatStore } from '@/stores/chat';
@@ -77,30 +78,20 @@ onMounted(() => {
       <div class="flex items-center gap-1.5">
         <button
           v-if="onEventPage"
-          class="relative grid h-9 w-9 place-items-center rounded-full text-fg-2 transition hover:bg-surface-2"
+          class="relative grid h-11 w-11 place-items-center rounded-full text-fg-2 transition hover:bg-surface-2"
           aria-label="Open chat"
           @click="chat.sheetOpen = true"
         >
           <MessageCircle :size="18" />
-          <span
-            v-if="chat.unread > 0"
-            class="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand-500 px-1 text-[10px] font-bold leading-none text-ink-900"
-          >
-            {{ chat.unread > 9 ? '9+' : chat.unread }}
-          </span>
+          <UnreadBadge :count="chat.unread" class="absolute -right-0.5 -top-0.5" />
         </button>
         <button
-          class="relative grid h-9 w-9 place-items-center rounded-full text-fg-2 transition hover:bg-surface-2"
+          class="relative grid h-11 w-11 place-items-center rounded-full text-fg-2 transition hover:bg-surface-2"
           aria-label="Notifications"
           @click="notificationsOpen = true"
         >
           <Bell :size="18" />
-          <span
-            v-if="notifications.unread > 0"
-            class="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand-500 px-1 text-[10px] font-bold leading-none text-ink-900"
-          >
-            {{ notifications.unread > 9 ? '9+' : notifications.unread }}
-          </span>
+          <UnreadBadge :count="notifications.unread" class="absolute -right-0.5 -top-0.5" />
         </button>
         <RouterLink to="/profile" aria-label="Your profile" class="ml-0.5">
           <Avatar :name="identity.displayName" :avatar="identity.avatar" :size="32" />

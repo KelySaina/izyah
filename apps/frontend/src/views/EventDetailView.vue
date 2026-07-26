@@ -27,6 +27,7 @@ import MediaGallery from '@/components/MediaGallery.vue';
 import EventDetailSkeleton from '@/components/EventDetailSkeleton.vue';
 import Lightbox from '@/components/Lightbox.vue';
 import EventMap from '@/components/EventMap.vue';
+import UnreadBadge from '@/components/UnreadBadge.vue';
 import { useEventsStore } from '@/stores/events';
 import { useIdentityStore } from '@/stores/identity';
 import { useChatStore } from '@/stores/chat';
@@ -228,6 +229,10 @@ async function onToggleAttendee(
       </p>
     </header>
 
+    <!-- Share / calendar — kept near the date/time it operates on, not
+         buried below RSVP/tickets/attendees. -->
+    <ShareSheet :event="event" />
+
     <!-- Location map (only when the event has a pinned position) -->
     <EventMap
       v-if="event.latitude != null && event.longitude != null"
@@ -275,12 +280,7 @@ async function onToggleAttendee(
       </div>
       <span class="flex items-center gap-1 text-xs font-semibold text-fg-3">
         Chat, tasks & polls
-        <span
-          v-if="chat.unread > 0"
-          class="grid h-4 min-w-4 place-items-center rounded-full bg-brand-500 px-1 text-[10px] font-bold leading-none text-ink-900"
-        >
-          {{ chat.unread > 9 ? '9+' : chat.unread }}
-        </span>
+        <UnreadBadge :count="chat.unread" />
         <ChevronRight :size="14" />
       </span>
     </button>
@@ -297,9 +297,6 @@ async function onToggleAttendee(
         @toggle="onToggleAttendee"
       />
     </section>
-
-    <!-- Share / calendar -->
-    <ShareSheet :event="event" />
 
     <!-- Media -->
     <section class="card space-y-3 p-4" :class="isPast ? 'ring-1 ring-brand-500/30' : ''">

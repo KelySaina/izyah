@@ -47,7 +47,7 @@ function remove(): void {
       <button
         v-if="preview && !uploading"
         type="button"
-        class="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/50 text-white transition active:scale-90"
+        class="absolute right-2 top-2 grid h-11 w-11 place-items-center rounded-full bg-black/50 text-white transition active:scale-90"
         aria-label="Remove cover"
         @click="remove"
       >

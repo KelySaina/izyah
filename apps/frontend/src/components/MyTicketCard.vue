@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import QRCode from 'qrcode';
-import { Ticket, CheckCircle2 } from 'lucide-vue-next';
+import { Ticket, CheckCircle2, AlertCircle } from 'lucide-vue-next';
 import { useEventsStore } from '@/stores/events';
+import { ApiError } from '@/services/api';
 import type { MyTicketDTO } from '@/types';
 
 const props = defineProps<{ eventId: string }>();
@@ -11,8 +12,14 @@ const events = useEventsStore();
 const ticket = ref<MyTicketDTO | null>(null);
 const qrDataUrl = ref<string | null>(null);
 const loading = ref(true);
+// Distinct from "not eligible for a ticket" (fetchMyTicket resolves `null`
+// for that) — this is specifically "the fetch itself failed," which needs a
+// retry path since the QR code is what gets a guest through the door.
+const error = ref<string | null>(null);
 
-onMounted(async () => {
+async function load(): Promise<void> {
+  loading.value = true;
+  error.value = null;
   try {
     const t = await events.fetchMyTicket(props.eventId);
     ticket.value = t;
@@ -22,12 +29,14 @@ onMounted(async () => {
         margin: 1,
       });
     }
-  } catch {
-    // Non-critical — the card just doesn't show if the ticket can't be fetched.
+  } catch (err) {
+    error.value = err instanceof ApiError ? err.message : "Couldn't load your ticket";
   } finally {
     loading.value = false;
   }
-});
+}
+
+onMounted(load);
 </script>
 
 <template>
@@ -40,5 +49,12 @@ onMounted(async () => {
       <CheckCircle2 :size="15" /> Checked in
     </p>
     <p v-else class="text-xs text-fg-3">Show this at the door to be checked in.</p>
+  </section>
+
+  <section v-else-if="!loading && error" class="card flex flex-col items-center gap-2 p-4 text-center">
+    <p class="flex items-center gap-1.5 text-sm font-medium text-red-500">
+      <AlertCircle :size="15" /> {{ error }}
+    </p>
+    <button type="button" class="btn-ghost text-xs" @click="load">Try again</button>
   </section>
 </template>

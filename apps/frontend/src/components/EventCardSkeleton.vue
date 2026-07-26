@@ -7,7 +7,7 @@ import Skeleton from '@/components/Skeleton.vue';
   <div class="card overflow-hidden">
     <Skeleton class="h-32 w-full !rounded-none" />
     <div class="flex gap-3 p-3">
-      <Skeleton class="h-14 w-14 shrink-0 rounded-xl" />
+      <Skeleton class="h-16 w-16 shrink-0 rounded-xl" />
       <div class="min-w-0 flex-1 space-y-2.5 py-1">
         <Skeleton class="h-4 w-3/4" />
         <Skeleton class="h-3 w-1/2" />

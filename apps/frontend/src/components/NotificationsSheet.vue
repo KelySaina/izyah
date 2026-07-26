@@ -4,12 +4,14 @@ import { useRouter } from 'vue-router';
 import { Bell, BarChart3, CalendarCheck, Check, ClipboardCheck, HelpCircle, UserX, Search, X } from 'lucide-vue-next';
 import EmptyState from '@/components/EmptyState.vue';
 import { useNotificationsStore } from '@/stores/notifications';
+import { useChatStore } from '@/stores/chat';
 import { relativeTime } from '@/lib/format';
 import type { NotificationDTO } from '@/types';
 
 const isOpen = defineModel<boolean>({ default: false });
 
 const notifications = useNotificationsStore();
+const chat = useChatStore();
 const router = useRouter();
 
 function close(): void {
@@ -137,7 +139,13 @@ async function onSelect(n: NotificationDTO): Promise<void> {
   await notifications.markRead(n.id);
   const slug = slugOf(n);
   close();
-  if (slug) void router.push(`/event/${slug}`);
+  if (slug) {
+    // Chat's `sheetOpen` is global state, not scoped to whatever event it
+    // was last opened for — without this, jumping to a different event from
+    // here can leave a stale Chat sheet reappearing over the new page.
+    chat.sheetOpen = false;
+    void router.push(`/event/${slug}`);
+  }
 }
 </script>
 
@@ -170,7 +178,7 @@ async function onSelect(n: NotificationDTO): Promise<void> {
               </button>
               <button
                 type="button"
-                class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-fg-2 transition hover:bg-surface-2"
+                class="grid h-11 w-11 shrink-0 place-items-center rounded-full text-fg-2 transition hover:bg-surface-2"
                 aria-label="Close"
                 @click="close"
               >
@@ -186,12 +194,12 @@ async function onSelect(n: NotificationDTO): Promise<void> {
                 v-model="search"
                 type="text"
                 placeholder="Search notifications"
-                class="w-full bg-transparent text-sm text-fg placeholder:text-fg-3 focus:outline-none"
+                class="w-full rounded bg-transparent text-sm text-fg placeholder:text-fg-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               />
               <button
                 v-if="search"
                 type="button"
-                class="grid h-4 w-4 shrink-0 place-items-center rounded-full text-fg-3 hover:text-fg"
+                class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-fg-3 hover:text-fg"
                 aria-label="Clear search"
                 @click="search = ''"
               >

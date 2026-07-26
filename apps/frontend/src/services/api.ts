@@ -32,6 +32,24 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * `validate.ts` attaches Zod's per-field errors as `details` alongside the
+ * generic "Validation failed" message — surface the first field-level
+ * message (e.g. "String must contain at most 80 character(s)") instead of
+ * the generic one whenever it's present, so a toast tells the user what was
+ * actually wrong.
+ */
+export function apiErrorMessage(err: unknown): string {
+  if (!(err instanceof ApiError)) return 'Something went wrong';
+  const fieldErrors = err.details as Record<string, string[] | undefined> | undefined;
+  if (fieldErrors && typeof fieldErrors === 'object') {
+    for (const messages of Object.values(fieldErrors)) {
+      if (messages?.length) return messages[0]!;
+    }
+  }
+  return err.message;
+}
+
 interface RequestOptions {
   method?: string;
   body?: unknown;

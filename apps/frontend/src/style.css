@@ -17,7 +17,7 @@
     --c-fg: 24 24 27; /* primary text */
     --c-fg-2: 82 82 91; /* secondary text */
     --c-fg-3: 130 130 138; /* muted text */
-    --c-accent: 181 133 15; /* readable gold for text/icons on light */
+    --c-accent: 138 98 10; /* deep gold — ~5.5:1 on white, passes AA for normal text */
   }
   .dark {
     color-scheme: dark;
@@ -78,6 +78,20 @@
   }
   .chip-gold {
     @apply inline-flex items-center gap-1 rounded-full bg-brand-500/15 px-2 py-0.5 text-xs font-semibold text-accent;
+  }
+}
+
+/* Respect the OS-level "reduce motion" preference (often set for vestibular
+   disorders) — collapses every animation/transition to effectively instant
+   rather than picking through each one individually. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

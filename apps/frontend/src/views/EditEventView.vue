@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { RouterLink, onBeforeRouteLeave, useRouter } from 'vue-router';
 import EventForm from '@/components/EventForm.vue';
 import { useEventsStore } from '@/stores/events';
 import { useIdentityStore } from '@/stores/identity';
@@ -17,6 +17,20 @@ const ui = useUiStore();
 
 const loading = ref(true);
 const saving = ref(false);
+const dirty = ref(false);
+
+// Warn before leaving mid-edit — there's no draft-restore safety net here
+// (EventForm never restores a draft once `initial` is set, on purpose, so a
+// stale local draft can never clobber another device's more recent edit).
+onBeforeRouteLeave(async () => {
+  if (!dirty.value) return true;
+  return ui.confirm({
+    title: 'Discard changes?',
+    message: "You've made changes that haven't been saved. Leave without saving?",
+    confirmText: 'Discard',
+    danger: true,
+  });
+});
 
 const event = computed(() => events.current);
 const isCreator = computed(() => !!event.value && identity.id === event.value.creatorId);
@@ -57,6 +71,7 @@ async function onSubmit(value: CreateEventInput): Promise<void> {
   saving.value = true;
   try {
     const updated = await events.update(props.id, value);
+    dirty.value = false;
     ui.toast('Saved', 'success');
     await router.push(`/event/${updated.slug}`);
   } catch (err) {
@@ -76,6 +91,7 @@ async function onDelete(): Promise<void> {
   if (!ok) return;
   try {
     await events.remove(props.id);
+    dirty.value = false;
     ui.toast('Event deleted', 'success');
     await router.push('/dashboard');
   } catch (err) {
@@ -86,7 +102,15 @@ async function onDelete(): Promise<void> {
 
 <template>
   <div class="space-y-5">
-    <h1 class="text-xl font-bold tracking-tight">Edit event</h1>
+    <div class="flex items-center justify-between">
+      <h1 class="text-xl font-bold tracking-tight">Edit event</h1>
+      <RouterLink
+        :to="event ? `/event/${event.slug}` : '/dashboard'"
+        class="text-sm font-semibold text-red-500 hover:text-red-600"
+      >
+        Cancel
+      </RouterLink>
+    </div>
 
     <p v-if="loading" class="text-sm text-fg-2">Loading…</p>
 
@@ -100,6 +124,7 @@ async function onDelete(): Promise<void> {
         submit-label="Save changes"
         :loading="saving"
         @submit="onSubmit"
+        @dirty="dirty = $event"
       />
 
       <button

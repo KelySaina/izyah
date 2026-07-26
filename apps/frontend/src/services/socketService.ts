@@ -10,18 +10,31 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:4000';
 
 let socket: Socket | null = null;
 
+// Events the app currently considers itself "in". Socket.IO reconnects the
+// transport automatically after a drop, but it never replays prior emits —
+// without this, a dropped-then-restored connection would silently leave the
+// server-side presence room, freezing online-count/live-RSVP updates with no
+// visible sign anything went wrong.
+const joinedEvents = new Set<string>();
+
 export function connectSocket(): Socket {
-  const token = getToken();
   if (socket?.connected) return socket;
-  if (socket) socket.connect();
-  else {
-    socket = io(SOCKET_URL, {
-      path: '/socket.io',
-      transports: ['websocket', 'polling'],
-      auth: { token },
-      autoConnect: true,
-    });
+  if (socket) {
+    socket.connect();
+    return socket;
   }
+  const token = getToken();
+  socket = io(SOCKET_URL, {
+    path: '/socket.io',
+    transports: ['websocket', 'polling'],
+    auth: { token },
+    autoConnect: true,
+  });
+  // Fires on the initial connect AND every reconnect — re-join every room
+  // this client is supposed to be in.
+  socket.on('connect', () => {
+    for (const eventId of joinedEvents) socket!.emit('presence:join', eventId);
+  });
   return socket;
 }
 
@@ -35,9 +48,16 @@ export function getSocket(): Socket | null {
 
 // ---- Chat / presence helpers -----------------------------------------------
 export function joinEvent(eventId: string): void {
-  connectSocket().emit('presence:join', eventId);
+  joinedEvents.add(eventId);
+  const s = connectSocket();
+  // Already connected: join now. Not yet connected: the 'connect' handler
+  // above will join for us once it's up — emitting here too would double-join
+  // (socket.io buffers emits made before a connection completes) and inflate
+  // the server's presence count for this one connection.
+  if (s.connected) s.emit('presence:join', eventId);
 }
 export function leaveEvent(eventId: string): void {
+  joinedEvents.delete(eventId);
   socket?.emit('presence:leave', eventId);
 }
 export function sendTyping(eventId: string, isTyping: boolean): void {

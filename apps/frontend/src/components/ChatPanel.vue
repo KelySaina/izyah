@@ -83,7 +83,7 @@ onBeforeUnmount(() => clearTimeout(typingTimer));
   <div class="card flex h-[70vh] flex-col overflow-hidden">
     <!-- Header -->
     <div v-if="showHeader" class="flex items-center justify-between border-b border-line/10 px-3 py-2">
-      <h3 class="flex items-center gap-1.5 text-sm font-semibold text-fg">
+      <h3 class="flex items-center gap-1.5 text-sm font-bold text-fg">
         <MessageCircle :size="16" class="text-accent" /> Chat
       </h3>
       <OnlineBadge :count="chat.online" />
@@ -133,6 +133,7 @@ onBeforeUnmount(() => clearTimeout(typingTimer));
         v-model="draft"
         rows="1"
         class="input max-h-28 flex-1 resize-none"
+        maxlength="2000"
         placeholder="Message…"
         aria-label="Message"
         @input="onInput"

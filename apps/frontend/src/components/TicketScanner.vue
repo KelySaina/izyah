@@ -87,12 +87,13 @@ function close(): void {
 
 <template>
   <Teleport to="body">
-    <div v-if="isOpen" class="fixed inset-0 z-50 flex flex-col bg-ink-900">
+    <transition name="fade">
+      <div v-if="isOpen" class="fixed inset-0 z-50 flex flex-col bg-ink-900">
       <div class="flex items-center justify-between p-4 text-white">
         <h2 class="text-base font-bold">Scan tickets</h2>
         <button
           type="button"
-          class="grid h-9 w-9 place-items-center rounded-full transition hover:bg-white/10"
+          class="grid h-11 w-11 place-items-center rounded-full transition hover:bg-white/10"
           aria-label="Close scanner"
           @click="close"
         >
@@ -129,6 +130,7 @@ function close(): void {
       >
         {{ lastError }}
       </div>
-    </div>
+      </div>
+    </transition>
   </Teleport>
 </template>
