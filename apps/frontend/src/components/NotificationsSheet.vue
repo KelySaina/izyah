@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Bell, BarChart3, CalendarCheck, Check, ClipboardCheck, X } from 'lucide-vue-next';
+import { Bell, BarChart3, CalendarCheck, Check, ClipboardCheck, Search, X } from 'lucide-vue-next';
 import EmptyState from '@/components/EmptyState.vue';
 import { useNotificationsStore } from '@/stores/notifications';
 import { relativeTime } from '@/lib/format';
@@ -102,9 +102,16 @@ function slugOf(n: NotificationDTO): string | undefined {
   return (n.payload as { eventSlug?: string } | null)?.eventSlug;
 }
 
-const sorted = computed(() =>
-  [...notifications.items].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)),
-);
+const search = ref('');
+
+const sorted = computed(() => {
+  const byDate = [...notifications.items].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  const query = search.value.trim().toLowerCase();
+  if (!query) return byDate;
+  // Matches whatever's actually rendered — event/task/poll titles, names —
+  // so there's no separate "searchable fields" list to keep in sync.
+  return byDate.filter((n) => text(n).toLowerCase().includes(query));
+});
 
 async function onSelect(n: NotificationDTO): Promise<void> {
   await notifications.markRead(n.id);
@@ -152,8 +159,36 @@ async function onSelect(n: NotificationDTO): Promise<void> {
             </div>
           </div>
 
+          <div v-if="notifications.items.length > 0" class="border-b border-line/10 px-4 py-2">
+            <div class="flex items-center gap-2 rounded-full bg-surface-2 px-3 py-1.5">
+              <Search :size="14" class="shrink-0 text-fg-3" />
+              <input
+                v-model="search"
+                type="text"
+                placeholder="Search notifications"
+                class="w-full bg-transparent text-sm text-fg placeholder:text-fg-3 focus:outline-none"
+              />
+              <button
+                v-if="search"
+                type="button"
+                class="grid h-4 w-4 shrink-0 place-items-center rounded-full text-fg-3 hover:text-fg"
+                aria-label="Clear search"
+                @click="search = ''"
+              >
+                <X :size="14" />
+              </button>
+            </div>
+          </div>
+
           <div class="flex-1 overflow-y-auto">
             <p v-if="notifications.loading" class="p-4 text-center text-sm text-fg-2">Loading…</p>
+
+            <EmptyState
+              v-else-if="sorted.length === 0 && search"
+              :icon="Search"
+              title="No matches"
+              subtitle="Try a different search."
+            />
 
             <EmptyState
               v-else-if="sorted.length === 0"
