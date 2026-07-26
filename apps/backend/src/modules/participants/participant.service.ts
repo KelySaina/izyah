@@ -163,6 +163,32 @@ export async function setRsvp(
       },
     }).catch(() => undefined);
   }
+  // Only on the transition INTO maybe/not-going — re-confirming an unchanged
+  // status doesn't re-notify. Covers "dropped out" (was GOING) the same way.
+  if (effectiveStatus === 'MAYBE' && existing?.status !== 'MAYBE') {
+    void enqueueNotification({
+      userId: event.creatorId,
+      type: 'rsvp_maybe',
+      payload: {
+        eventId: event.id,
+        eventSlug: event.slug,
+        eventTitle: event.title,
+        displayName: userId === event.creatorId ? 'You' : displayName,
+      },
+    }).catch(() => undefined);
+  }
+  if (effectiveStatus === 'NOT_GOING' && existing?.status !== 'NOT_GOING') {
+    void enqueueNotification({
+      userId: event.creatorId,
+      type: 'rsvp_not_going',
+      payload: {
+        eventId: event.id,
+        eventSlug: event.slug,
+        eventTitle: event.title,
+        displayName: userId === event.creatorId ? 'You' : displayName,
+      },
+    }).catch(() => undefined);
+  }
   if (promotedUserId) {
     void enqueueNotification({
       userId: promotedUserId,

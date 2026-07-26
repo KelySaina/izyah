@@ -16,6 +16,12 @@ function toPushMessage(type: string, payload: Record<string, unknown> | null): P
     // an is/are conjugation special-case.
     return { title: "You're hosting", body: `${p.displayName} joined "${p.eventTitle}"`, url };
   }
+  if (type === 'rsvp_maybe') {
+    return { title: "You're hosting", body: `${p.displayName} might come to "${p.eventTitle}"`, url };
+  }
+  if (type === 'rsvp_not_going') {
+    return { title: "You're hosting", body: `${p.displayName} can't make "${p.eventTitle}"`, url };
+  }
   if (type === 'waitlist_promoted') {
     return { title: "You're in!", body: `You're off the waitlist for "${p.eventTitle}"`, url };
   }

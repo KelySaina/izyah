@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Bell, BarChart3, CalendarCheck, Check, ClipboardCheck, Search, X } from 'lucide-vue-next';
+import { Bell, BarChart3, CalendarCheck, Check, ClipboardCheck, HelpCircle, UserX, Search, X } from 'lucide-vue-next';
 import EmptyState from '@/components/EmptyState.vue';
 import { useNotificationsStore } from '@/stores/notifications';
 import { relativeTime } from '@/lib/format';
@@ -17,6 +17,16 @@ function close(): void {
 }
 
 interface RsvpGoingPayload {
+  eventTitle: string;
+  eventSlug: string;
+  displayName: string;
+}
+interface RsvpMaybePayload {
+  eventTitle: string;
+  eventSlug: string;
+  displayName: string;
+}
+interface RsvpNotGoingPayload {
   eventTitle: string;
   eventSlug: string;
   displayName: string;
@@ -62,6 +72,8 @@ function icon(n: NotificationDTO) {
   if (n.type === 'task_done') return Check;
   if (n.type === 'waitlist_promoted') return CalendarCheck;
   if (n.type === 'poll_created') return BarChart3;
+  if (n.type === 'rsvp_maybe') return HelpCircle;
+  if (n.type === 'rsvp_not_going') return UserX;
   return Bell;
 }
 
@@ -70,6 +82,14 @@ function text(n: NotificationDTO): string {
     const p = n.payload as RsvpGoingPayload;
     // Works for a real name or "You" alike — avoids an is/are special-case.
     return `${p.displayName} joined "${p.eventTitle}"`;
+  }
+  if (n.type === 'rsvp_maybe') {
+    const p = n.payload as RsvpMaybePayload;
+    return `${p.displayName} might come to "${p.eventTitle}"`;
+  }
+  if (n.type === 'rsvp_not_going') {
+    const p = n.payload as RsvpNotGoingPayload;
+    return `${p.displayName} can't make "${p.eventTitle}"`;
   }
   if (n.type === 'waitlist_promoted') {
     const p = n.payload as WaitlistPromotedPayload;
