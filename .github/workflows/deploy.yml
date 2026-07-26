@@ -28,6 +28,11 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       core: ${{ steps.filter.outputs.core }}
     steps:
+      # paths-filter needs real git history to diff against on push events —
+      # without this, there's no .git checked out and it fails with exit 128.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: dorny/paths-filter@v3
         id: filter
         with:

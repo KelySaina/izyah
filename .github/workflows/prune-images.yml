@@ -1,0 +1,29 @@
+name: Prune old container images
+
+# Every successful push to main leaves a new :<sha>-tagged image in GHCR.
+# deploy.sh only ever needs the current one and the immediately-previous one
+# (its rollback target — see .deployed_tag in scripts/deploy.sh), so anything
+# older is safe to delete. Runs weekly, or on demand.
+on:
+  schedule:
+    - cron: '0 3 * * 0' # Sundays 03:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        package: [izyah-backend, izyah-frontend]
+    steps:
+      - name: Prune old versions of ${{ matrix.package }}
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ matrix.package }}
+          package-type: container
+          # Keep the 2 most recent versions: whatever's currently deployed,
+          # plus the one before it (deploy.sh's rollback target). Everything
+          # else is unreachable dead weight.
+          min-versions-to-keep: 2
