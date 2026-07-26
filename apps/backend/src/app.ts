@@ -38,7 +38,15 @@ export function createApp(): Express {
   );
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
-  app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
+  app.use(
+    pinoHttp({
+      logger,
+      autoLogging: { ignore: (req) => req.url === '/health' },
+      // The Authorization header carries the caller's bearer session token —
+      // never write it to logs, or anyone with log access can impersonate them.
+      redact: ['req.headers.authorization', 'res.headers["set-cookie"]'],
+    }),
+  );
 
   // Resolve identity from the `Authorization: Bearer <token>` header.
   app.use(identity);

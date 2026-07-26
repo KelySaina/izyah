@@ -6,6 +6,8 @@ import { toUserDTO, type UserDTO } from '../users/user.service';
 import { track } from '../../analytics/track';
 import { minio, BUCKETS, publicUrl } from '../../lib/minio';
 import { enqueueMediaProcessing } from '../../queue';
+import { assertParticipant } from '../events/event.service';
+import { sniffImageOrVideo } from '../../lib/fileSniff';
 import type { ListMediaQuery } from './media.schemas';
 
 export interface MediaDTO {
@@ -50,15 +52,21 @@ export interface UploadMediaParams {
  */
 export async function uploadMedia(params: UploadMediaParams): Promise<MediaDTO> {
   const { eventId, userId, file } = params;
-  await assertEventExists(eventId);
+  await assertParticipant(eventId, userId);
 
-  const type = file.mimetype.startsWith('image/') ? 'IMAGE' : 'VIDEO';
+  // Trust the actual bytes, not the client-declared mimetype — a mismatched
+  // or unrecognized type (e.g. an SVG dressed up as image/png) is rejected
+  // rather than stored with an attacker-chosen Content-Type.
+  const sniffed = sniffImageOrVideo(file.buffer);
+  if (!sniffed) throw ApiError.badRequest('Unsupported or unrecognized file type');
+  const type = sniffed.kind === 'image' ? 'IMAGE' : 'VIDEO';
+
   // Collapse the original filename to a storage-safe token, namespaced by event.
   const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
   const objectKey = `${eventId}/${randomUUID()}-${safeName}`;
 
   await minio.putObject(BUCKETS.media, objectKey, file.buffer, file.size, {
-    'Content-Type': file.mimetype,
+    'Content-Type': sniffed.mimeType,
   });
 
   const media = await prisma.media.create({

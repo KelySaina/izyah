@@ -47,7 +47,15 @@ onMounted(() => {
   }).addTo(map);
   const icon = L.divIcon({ className: 'izyah-pin', html: pinSvg, iconSize: [30, 30], iconAnchor: [15, 29] });
   const marker = L.marker([props.lat, props.lng], { icon }).addTo(map);
-  if (props.label) marker.bindPopup(props.label);
+  if (props.label) {
+    // Hand Leaflet a real text node, not a string — bindPopup(string) treats
+    // its argument as HTML, which would let a location containing markup
+    // (fully host-controlled free text) execute as script in every viewer's
+    // browser.
+    const popupEl = document.createElement('div');
+    popupEl.textContent = props.label;
+    marker.bindPopup(popupEl);
+  }
   document.addEventListener('keydown', onKey);
 });
 

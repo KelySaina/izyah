@@ -187,7 +187,7 @@ gen() { openssl rand -hex 24; }   # 48 hex chars: URL/env-safe, no escaping need
 read_env() { [ -f .env ] && grep -E "^$1=" .env | head -n1 | cut -d= -f2- || true; }
 
 if [ -f .env ]; then
-  bak=".env.bak.$(date +%Y%m%d%H%M%S)"
+  bak=".env.bak-$(date +%Y%m%d%H%M%S)"
   cp .env "$bak"
   warn "Existing .env backed up to $bak. Existing secrets are REUSED (not rotated)."
   warn "  To force-rotate everything, delete .env first — but that breaks the existing"
@@ -200,6 +200,19 @@ fi
 POSTGRES_PASSWORD="$(read_env POSTGRES_PASSWORD)"; [ -n "$POSTGRES_PASSWORD" ] || POSTGRES_PASSWORD="$(gen)"
 MINIO_ROOT_PASSWORD="$(read_env MINIO_ROOT_PASSWORD)"; [ -n "$MINIO_ROOT_PASSWORD" ] || MINIO_ROOT_PASSWORD="$(gen)"
 SESSION_SECRET="$(read_env SESSION_SECRET)"; [ -n "$SESSION_SECRET" ] || SESSION_SECRET="$(openssl rand -hex 32)"
+
+# Adminer and the Traefik dashboard sit behind HTTP Basic Auth (Traefik
+# middleware, base docker-compose.yml) — ADMIN_AUTH_HTPASSWD is the derived
+# hash Traefik actually reads; ADMIN_AUTH_PASSWORD is kept alongside it only
+# so a re-run can reuse it instead of silently rotating your login.
+ADMIN_AUTH_USER="$(read_env ADMIN_AUTH_USER)"; [ -n "$ADMIN_AUTH_USER" ] || ADMIN_AUTH_USER="admin"
+ADMIN_AUTH_PASSWORD="$(read_env ADMIN_AUTH_PASSWORD)"; [ -n "$ADMIN_AUTH_PASSWORD" ] || ADMIN_AUTH_PASSWORD="$(openssl rand -hex 16)"
+ADMIN_AUTH_HTPASSWD="${ADMIN_AUTH_USER}:$(openssl passwd -apr1 -salt "$(openssl rand -hex 4)" "$ADMIN_AUTH_PASSWORD")"
+# docker compose interpolates $VAR/${VAR} in .env files too (not just compose
+# YAML) — a bare apr1 hash's `$` segments get silently swallowed as
+# references to undefined vars otherwise. Escape before writing to .env; the
+# unescaped $ADMIN_AUTH_HTPASSWD is only for the printed summary below.
+ADMIN_AUTH_HTPASSWD_ESCAPED="${ADMIN_AUTH_HTPASSWD//\$/\$\$}"
 
 # Preserve any Logto/OIDC config already wired in (so a re-run doesn't blank it).
 OIDC_ISSUER="$(read_env OIDC_ISSUER)"
@@ -264,6 +277,13 @@ LOG_LEVEL=info
 SESSION_SECRET=$SESSION_SECRET
 # Public URL of the app (used to build OIDC redirect/callback links in M2).
 APP_URL=$SCHEME://$APP_DOMAIN
+
+# --- Admin surfaces (Adminer, Traefik dashboard) ----------------------------
+# HTTP Basic Auth in front of both — see the summary this script prints for
+# the plaintext password (it's only ever shown once per rotation).
+ADMIN_AUTH_USER=$ADMIN_AUTH_USER
+ADMIN_AUTH_PASSWORD=$ADMIN_AUTH_PASSWORD
+ADMIN_AUTH_HTPASSWD=$ADMIN_AUTH_HTPASSWD_ESCAPED
 
 # --- OIDC (Logto) — empty = anonymous-only. Fill after provisioning ---------
 # See SETUP-AUTH.md. OIDC_ISSUER e.g. $SCHEME://$AUTH_DOMAIN/oidc
@@ -446,6 +466,9 @@ else
 EOF
 fi
 cat <<EOF
-  - Adminer and the Traefik dashboard are internet-exposed with no auth. Add a
-    basic-auth middleware or drop those routers in prod.
+  - Adminer and the Traefik dashboard require HTTP Basic Auth:
+      user:     $ADMIN_AUTH_USER
+      password: $ADMIN_AUTH_PASSWORD
+    (also saved in .env as ADMIN_AUTH_USER/ADMIN_AUTH_PASSWORD — a re-run
+    reuses rather than rotates it, same as the other secrets above.)
 EOF

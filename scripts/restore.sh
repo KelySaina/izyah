@@ -3,7 +3,8 @@
 # Izy'Ah — restore onto a new VPS from a scripts/backup.sh archive.
 #
 # Moving providers/boxes, keeping your data:
-#   1. On the OLD box:  bash scripts/backup.sh          -> backups/izyah-backup-*.tar.gz
+#   1. On the OLD box:  docker compose exec backup bash scripts/backup.sh
+#                                                        -> backups/izyah-backup-*.tar.gz
 #   2. Copy that file to the NEW box (scp), into ~/izyah/backups/.
 #   3. On the NEW box:  ./setup.sh --domain ... (or --nip/--http)
 #        This installs Docker/Traefik and writes a fresh .env +
@@ -35,6 +36,21 @@ log()  { printf '\n\033[36m==> %s\033[0m\n' "$*"; }
 warn() { printf '\n\033[33m==> %s\033[0m\n' "$*" >&2; }
 die()  { printf '\n\033[31m==> %s\033[0m\n' "$*" >&2; exit 1; }
 
+# Extraction runs as root (this script manages the whole stack) against an
+# archive that may have been copied over an untrusted channel — refuse
+# anything with an absolute path, a `..` path segment, or a symlink entry
+# before touching disk, rather than trusting tar's own (none) defaults.
+safe_extract() {
+  local archive="$1" dest="$2" bad
+  bad="$(tar tzf "$archive" | grep -E '^/|(^|/)\.\.(/|$)' || true)"
+  [ -z "$bad" ] || die "Refusing to extract $archive — unsafe path(s):
+$bad"
+  bad="$(tar tvzf "$archive" | awk '$1 ~ /^l/' || true)"
+  [ -z "$bad" ] || die "Refusing to extract $archive — contains symlink entries:
+$bad"
+  tar xzf "$archive" -C "$dest" --no-same-owner
+}
+
 ARCHIVE="${1:-}"
 [ -n "$ARCHIVE" ] || die "Usage: bash scripts/restore.sh <path-to-izyah-backup-*.tar.gz>"
 [ -f "$ARCHIVE" ] || die "Not found: $ARCHIVE"
@@ -47,7 +63,7 @@ WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
 
 log "Extracting $ARCHIVE"
-tar xzf "$ARCHIVE" -C "$WORKDIR"
+safe_extract "$ARCHIVE" "$WORKDIR"
 for f in postgres.sql env; do
   [ -f "$WORKDIR/$f" ] || die "Archive is missing $f — is this a scripts/backup.sh output?"
 done
@@ -116,7 +132,7 @@ fi
 
 if [ -f "$WORKDIR/minio-data.tar.gz" ]; then
   mkdir "$WORKDIR/minio-data"
-  tar xzf "$WORKDIR/minio-data.tar.gz" -C "$WORKDIR/minio-data"
+  safe_extract "$WORKDIR/minio-data.tar.gz" "$WORKDIR/minio-data"
   docker cp "$WORKDIR/minio-data/." "$($COMPOSE ps -a -q minio):/data"
 else
   warn "No minio-data.tar.gz in the archive — starting MinIO empty. Uploaded media will be missing!"

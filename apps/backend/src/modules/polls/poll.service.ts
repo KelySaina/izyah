@@ -1,7 +1,8 @@
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { ApiError } from '../../utils/http';
 import { notifyEventParticipants } from '../notifications/notification.service';
+import { assertParticipant } from '../events/event.service';
 import type { CreatePollInput } from './poll.schemas';
 
 export interface PollOptionDTO {
@@ -68,6 +69,7 @@ export async function createPoll(
   displayName: string,
   input: CreatePollInput,
 ): Promise<PollDTO> {
+  await assertParticipant(eventId, userId);
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     select: { slug: true, title: true },
@@ -122,7 +124,7 @@ export async function vote(
   userId: string,
   optionId: string,
 ): Promise<PollDTO> {
-  await assertEventExists(eventId);
+  await assertParticipant(eventId, userId);
 
   const poll = await prisma.poll.findUnique({
     where: { id: pollId },
@@ -133,11 +135,22 @@ export async function vote(
     throw ApiError.badRequest('Option does not belong to this poll');
   }
 
-  // One vote per user per poll: clear any prior vote on this poll, then record the new one.
-  await prisma.$transaction([
-    prisma.pollVote.deleteMany({ where: { userId, option: { pollId } } }),
-    prisma.pollVote.create({ data: { optionId, userId } }),
-  ]);
+  // One vote per user per poll: clear any prior vote, then record the new one.
+  // The `pollId` unique constraint (not just `optionId`) is what makes this
+  // safe under concurrent requests — two simultaneous votes for different
+  // options in the same poll can't both land; the loser hits a unique
+  // violation and retries once against the winner's now-visible row.
+  const castOnce = () =>
+    prisma.$transaction([
+      prisma.pollVote.deleteMany({ where: { pollId, userId } }),
+      prisma.pollVote.create({ data: { pollId, optionId, userId } }),
+    ]);
+  try {
+    await castOnce();
+  } catch (err) {
+    if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== 'P2002') throw err;
+    await castOnce();
+  }
 
   return loadPoll(eventId, pollId, userId);
 }

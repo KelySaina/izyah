@@ -2,6 +2,7 @@ import { prisma } from '../../lib/prisma';
 import { ApiError } from '../../utils/http';
 import { toUserDTO, type UserDTO } from '../users/user.service';
 import { track } from '../../analytics/track';
+import { assertParticipant } from '../events/event.service';
 import type { ListMessagesQuery } from './message.schemas';
 
 export interface MessageDTO {
@@ -27,7 +28,7 @@ export async function createMessage(params: {
   userId: string;
   content: string;
 }): Promise<MessageDTO> {
-  await assertEventExists(params.eventId);
+  await assertParticipant(params.eventId, params.userId);
   const message = await prisma.message.create({
     data: { eventId: params.eventId, userId: params.userId, content: params.content },
     include: { user: true },

@@ -41,6 +41,7 @@ participantsRouter.patch(
 
 participantsRouter.get(
   '/events/:eventId/participants',
+  requireIdentity,
   validate({ params: z.object({ eventId: uuid }) }),
   asyncHandler(attendees),
 );

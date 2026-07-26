@@ -11,6 +11,23 @@ http:
         referrerPolicy: strict-origin-when-cross-origin
         stsSeconds: 31536000
         stsIncludeSubdomains: true
+        # No 'unsafe-inline'/'unsafe-eval' for scripts — blocks injected
+        # <script>/on*= payloads even if a future XSS bug slips one in.
+        # connect-src stays broad (any https/wss origin) since the API can
+        # live on a different domain than the frontend and this file has no
+        # per-deployment templating; style-src keeps 'unsafe-inline' because
+        # Vue/Leaflet set real style="" attributes at runtime.
+        contentSecurityPolicy: >-
+          default-src 'self';
+          base-uri 'self';
+          frame-ancestors 'none';
+          object-src 'none';
+          img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org;
+          style-src 'self' 'unsafe-inline';
+          script-src 'self';
+          worker-src 'self';
+          manifest-src 'self';
+          connect-src 'self' https: wss:;
         customResponseHeaders:
           X-Powered-By: ""
           Server: ""

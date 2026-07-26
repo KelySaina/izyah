@@ -222,6 +222,24 @@ export async function assertCreator(eventId: string, userId: string): Promise<Ev
   return event;
 }
 
+/**
+ * Gate for *contributing* to an event (chat, tasks, polls, media) — anyone
+ * with the link can already view these (that's the point of link-only
+ * sharing), but posting requires having RSVP'd, so a stranger who merely
+ * learns an event's id/slug can't drive-by spam it without ever joining.
+ * RSVPing itself stays one tap, no signup — this doesn't add real friction.
+ */
+export async function assertParticipant(eventId: string, userId: string): Promise<void> {
+  const exists = await prisma.event.count({ where: { id: eventId } });
+  if (!exists) throw ApiError.notFound('Event not found');
+  const participant = await prisma.eventParticipant.findUnique({
+    where: { eventId_userId: { eventId, userId } },
+  });
+  if (!participant || participant.status === 'NOT_GOING') {
+    throw ApiError.forbidden('RSVP to this event before contributing to it');
+  }
+}
+
 export async function updateEvent(
   userId: string,
   eventId: string,

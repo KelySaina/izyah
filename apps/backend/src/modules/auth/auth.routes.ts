@@ -2,13 +2,14 @@ import { Router } from 'express';
 import { asyncHandler } from '../../utils/http';
 import { validate } from '../../middleware/validate';
 import { requireIdentity } from '../../middleware/identity';
+import { anonBootstrapLimiter } from '../../middleware/rateLimit';
 import { linkSchema } from './auth.schemas';
 import { anonymous, me, link, logout } from './auth.controller';
 
 export const authRouter = Router();
 
 // Bootstrap is the only auth endpoint that needs no existing identity.
-authRouter.post('/auth/anonymous', asyncHandler(anonymous));
+authRouter.post('/auth/anonymous', anonBootstrapLimiter, asyncHandler(anonymous));
 
 authRouter.get('/auth/me', requireIdentity, asyncHandler(me));
 

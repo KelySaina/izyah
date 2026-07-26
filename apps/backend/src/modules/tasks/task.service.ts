@@ -3,6 +3,7 @@ import { prisma } from '../../lib/prisma';
 import { ApiError } from '../../utils/http';
 import { toUserDTO, type UserDTO } from '../users/user.service';
 import { notifyEventParticipants } from '../notifications/notification.service';
+import { assertParticipant } from '../events/event.service';
 import type { CreateTaskInput, UpdateTaskInput } from './task.schemas';
 
 export interface TaskDTO {
@@ -48,6 +49,7 @@ export async function createTask(
   displayName: string,
   input: CreateTaskInput,
 ): Promise<TaskDTO> {
+  await assertParticipant(eventId, userId);
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     select: { slug: true, title: true },
@@ -86,6 +88,7 @@ export async function claimTask(
   userId: string,
   displayName: string,
 ): Promise<TaskDTO> {
+  await assertParticipant(eventId, userId);
   const existing = await findTaskInEvent(eventId, taskId);
   const task = await prisma.task.update({
     where: { id: taskId },
@@ -118,6 +121,7 @@ export async function releaseTask(
   userId: string,
   displayName: string,
 ): Promise<TaskDTO> {
+  await assertParticipant(eventId, userId);
   const existing = await findTaskInEvent(eventId, taskId);
   // Only the current assignee may release the task back to the pool.
   if (existing.assignedUserId !== userId) {
@@ -153,6 +157,7 @@ export async function updateTask(
   displayName: string,
   input: UpdateTaskInput,
 ): Promise<TaskDTO> {
+  await assertParticipant(eventId, userId);
   const existing = await findTaskInEvent(eventId, taskId);
   const task = await prisma.task.update({
     where: { id: taskId },

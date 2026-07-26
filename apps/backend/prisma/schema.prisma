@@ -268,15 +268,20 @@ model PollOption {
 
 model PollVote {
   id       String @id @default(uuid()) @db.Uuid
+  // Denormalized from option.pollId so a single-choice vote can be enforced
+  // per POLL (not just per option) at the database level — see
+  // poll.service.ts#vote. Kept in sync at write time.
+  pollId   String @db.Uuid
   optionId String @db.Uuid
   userId   String @db.Uuid
 
   option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
   user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // One vote per user per option.
-  @@unique([optionId, userId])
+  // One vote per user per poll.
+  @@unique([pollId, userId])
   @@index([userId])
+  @@index([optionId])
   @@map("poll_votes")
 }
 

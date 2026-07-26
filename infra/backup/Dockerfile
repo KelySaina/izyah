@@ -1,9 +1,13 @@
 # Izy'Ah — backup-cron sidecar. Node (to run backup-cron.js's scheduler) plus
-# a Docker CLI (to run scripts/backup.sh's `docker compose exec`/`docker cp`
-# against the sibling containers, over the socket mounted in by compose).
+# the client tools scripts/backup.sh needs to talk to Postgres/Redis/MinIO
+# over the shared docker network — no Docker socket, no docker CLI. See that
+# script's header for why avoiding the socket matters here.
+FROM minio/mc:latest AS mc
+
 FROM node:20-alpine
 
-RUN apk add --no-cache bash docker-cli docker-cli-compose
+RUN apk add --no-cache bash postgresql16-client redis curl
+COPY --from=mc /usr/bin/mc /usr/local/bin/mc
 
 WORKDIR /app/scripts
 COPY scripts/package.json scripts/package-lock.json* ./
