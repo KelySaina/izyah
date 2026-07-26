@@ -454,6 +454,14 @@ and prints any service that has drifted, with the command to recreate it. This i
 never fatal: upgrading the Compose binary can change how hashes are computed, and that must
 not be able to block a deploy.
 
+For the same reason, **no third-party image floats on `:latest`.** `minio`, `minio-init`,
+`adminer`, and `logto` are pinned by digest (to the images production was verified to be
+running), and `traefik` by tag; `postgres`/`redis` stay on their major-version alpine tags,
+where new patches are wanted and the data format is stable. Digest-pinning MinIO and Logto is
+deliberate — both own on-disk state, so an unplanned version jump on recreate would migrate a
+volume or a schema unasked. Each pin carries the re-pin command in a comment above it; bump
+them on purpose, in a commit, having read the upstream release notes.
+
 Doing it by hand instead:
 
 1. Point DNS for your app + API subdomains at the host.

@@ -51,7 +51,9 @@ services:
       - izyah-dev
 
   minio:
-    image: minio/minio:latest
+    # Digest-pinned to match production exactly — see docker-compose.yml for
+    # the reasoning and the re-pin recipe. Keep the two files in sync.
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e  # RELEASE.2025-09-07T16-13-09Z
     container_name: izyah-storage-dev
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -67,7 +69,7 @@ services:
       - izyah-dev
 
   minio-init:
-    image: minio/mc:latest
+    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727  # mc 9.6
     depends_on:
       - minio
     environment:
@@ -82,7 +84,7 @@ services:
       - izyah-dev
 
   adminer:
-    image: adminer:latest
+    image: adminer@sha256:494d4a9461105644222c938679fe58d5e3fd13fb228c76a426e81c16d4ffbaef
     container_name: izyah-adminer-dev
     restart: unless-stopped
     ports:
@@ -96,7 +98,7 @@ services:
   # if you don't start it. Console at http://localhost:3002, OIDC at :3001.
   # First run needs a `logto` database: `docker compose ... exec postgres createdb -U izyah logto`
   logto:
-    image: svhd/logto:latest
+    image: svhd/logto@sha256:7f79547e3d1fe569a3ecae757968a7cfc579687aa8164eec35113c0adc983c5b  # 1.41.0
     container_name: izyah-logto-dev
     restart: unless-stopped
     # Only starts with `--profile auth` (M2). A plain `up` leaves it dormant.

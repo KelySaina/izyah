@@ -102,7 +102,16 @@ services:
   # Object storage (S3 compatible)
   # --------------------------------------------------------------------------
   minio:
-    image: minio/minio:latest
+    # Digest-pinned to the image production is already running (verified on the
+    # box 2026-07-26), so a recreate can never silently swap the version out
+    # from under an existing data volume. `:latest` gave no such guarantee: a
+    # traefik container recreated onto a tag the files no longer described is
+    # exactly what caused a routing outage. Re-pin deliberately with:
+    #   docker pull minio/minio:RELEASE.<x> && \
+    #     docker image inspect minio/minio:RELEASE.<x> --format '{{index .RepoDigests 0}}'
+    # and read MinIO's release notes first — a server upgrade is a one-way door
+    # for the volume format.
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e  # RELEASE.2025-09-07T16-13-09Z
     container_name: izyah-storage
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -127,7 +136,9 @@ services:
 
   # One-shot: create buckets + set public-read policy on media.
   minio-init:
-    image: minio/mc:latest
+    # Pinned for the same reason as minio above; stateless, so this one is only
+    # about reproducibility, not data safety.
+    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727  # mc 9.6
     container_name: izyah-storage-init
     depends_on:
       minio:
@@ -147,7 +158,11 @@ services:
   # Database administration tool
   # --------------------------------------------------------------------------
   adminer:
-    image: adminer:latest
+    # Stateless, but pinned anyway: this sits in front of the production
+    # database, so the image reaching it should never change without a commit.
+    # The image publishes no version label — digest captured from the running
+    # production container on 2026-07-26.
+    image: adminer@sha256:494d4a9461105644222c938679fe58d5e3fd13fb228c76a426e81c16d4ffbaef
     container_name: izyah-adminer
     restart: unless-stopped
     environment:
@@ -171,7 +186,10 @@ services:
   # chooses to "claim" their identity. See SETUP-AUTH.md for provisioning.
   # --------------------------------------------------------------------------
   logto:
-    image: svhd/logto:latest
+    # Digest-pinned: Logto owns its own schema in the `logto` database and the
+    # entrypoint runs `cli db seed` on every start, so an unplanned version jump
+    # would migrate that schema unasked. See minio above for how to re-pin.
+    image: svhd/logto@sha256:7f79547e3d1fe569a3ecae757968a7cfc579687aa8164eec35113c0adc983c5b  # 1.41.0
     container_name: izyah-logto
     restart: unless-stopped
     # Dormant until M2: only starts with `--profile auth`, so a normal
