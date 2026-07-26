@@ -31,7 +31,7 @@ export async function removeSubscription(userId: string, endpoint: string): Prom
 }
 
 /** Best-effort fan-out to every device a user has subscribed from. Dead
- *  subscriptions (browser says the endpoint is gone) are pruned as we go. */
+ *  subscriptions are pruned as we go — see the catch block for what counts. */
 export async function sendPushToUser(userId: string, message: PushMessage): Promise<void> {
   if (!pushEnabled) return;
 
@@ -48,8 +48,26 @@ export async function sendPushToUser(userId: string, message: PushMessage): Prom
         );
       } catch (err) {
         const statusCode = (err as { statusCode?: number }).statusCode;
-        if (statusCode === 404 || statusCode === 410) {
+        // 404 / 410 — the push service says the endpoint is gone (site data
+        // cleared, browser uninstalled).
+        //
+        // 403 — the subscription was created against a different VAPID key, so
+        // this server can never sign for it again. A browser only accepts
+        // pushes signed by the `applicationServerKey` it subscribed with, so
+        // after a key rotation every pre-existing row is permanently dead. Not
+        // pruning them means retrying each one on every notification forever.
+        // This can't swallow a misconfiguration: `setVapidDetails` validates
+        // the subject and keys at boot and throws, so a bad config fails
+        // loudly at startup rather than arriving here as a 403.
+        if (statusCode === 404 || statusCode === 410 || statusCode === 403) {
           await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => undefined);
+          if (statusCode === 403) {
+            // Deliberately no endpoint in the log — it's a bearer-ish URL.
+            logger.warn(
+              { userId },
+              'pruned a push subscription signed with a stale VAPID key — user must re-enable notifications',
+            );
+          }
         } else {
           logger.warn({ err, userId }, 'web push delivery failed');
         }
