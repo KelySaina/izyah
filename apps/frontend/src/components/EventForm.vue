@@ -293,7 +293,7 @@ function onSubmit(): void {
         <div v-if="form.attendanceMode !== 'NONE'" class="flex items-center justify-between gap-3">
           <dt class="text-fg-3">{{ form.attendanceMode === 'TICKET' ? 'Ticket price' : 'Min PAF' }}</dt>
           <dd class="text-fg">
-            {{ form.attendanceMode === 'TICKET' ? form.ticketPrice : form.minPafAmount || '—' }}
+            {{ (form.attendanceMode === 'TICKET' ? form.ticketPrice : form.minPafAmount) || '—' }}
           </dd>
         </div>
         <div class="flex items-center justify-between gap-3">
@@ -402,8 +402,7 @@ function onSubmit(): void {
         <input
           id="ev-capacity"
           v-model="form.capacity"
-          type="number"
-          min="1"
+          type="text"
           inputmode="numeric"
           class="input"
           placeholder="Unlimited"
@@ -441,8 +440,7 @@ function onSubmit(): void {
           <input
             id="ev-min-paf"
             v-model="form.minPafAmount"
-            type="number"
-            min="1"
+            type="text"
             inputmode="numeric"
             class="input"
             placeholder="e.g. 20000"
@@ -453,8 +451,7 @@ function onSubmit(): void {
           <input
             id="ev-ticket-price"
             v-model="form.ticketPrice"
-            type="number"
-            min="1"
+            type="text"
             inputmode="numeric"
             class="input"
             placeholder="e.g. 20000"

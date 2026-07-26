@@ -44,15 +44,17 @@ export const useEventsStore = defineStore('events', () => {
   }
 
   async function fetchEvent(idOrSlug: string): Promise<EventDTO> {
-    loading.value = true;
-    try {
-      const event = await api.events.get(idOrSlug);
-      current.value = event;
-      counts.value = event.counts;
-      return event;
-    } finally {
-      loading.value = false;
-    }
+    // Deliberately doesn't touch the shared `loading` flag — that's read by
+    // Home/Dashboard's list skeleton (via fetchEvents below), and callers of
+    // this function (EventDetailView) track their own local loading state.
+    // Sharing one flag across both caused a real bug: a slow, stale
+    // fetchEvent() call left over from a page the user already navigated
+    // away from could flip `loading` on/off later and make an unrelated
+    // page's skeleton flicker back in after it had already stabilized.
+    const event = await api.events.get(idOrSlug);
+    current.value = event;
+    counts.value = event.counts;
+    return event;
   }
 
   async function fetchAttendees(eventId: string): Promise<void> {
