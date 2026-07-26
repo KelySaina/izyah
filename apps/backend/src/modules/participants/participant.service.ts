@@ -107,8 +107,14 @@ export async function setRsvp(
   // Mint a ticket the first time someone actually goes to a TICKET event.
   // Never regenerated once set — stable for the participant's whole
   // lifetime on this event, so un-RSVPing and coming back GOING keeps the
-  // same QR working.
-  if (effectiveStatus === 'GOING' && event.attendanceMode === 'TICKET' && !participant.ticketCode) {
+  // same QR working. The host never gets one — they're running the door,
+  // not paying to get in.
+  if (
+    effectiveStatus === 'GOING' &&
+    event.attendanceMode === 'TICKET' &&
+    !participant.ticketCode &&
+    userId !== event.creatorId
+  ) {
     await prisma.eventParticipant.update({
       where: { id: participant.id },
       data: { ticketCode: randomUUID() },
@@ -181,11 +187,15 @@ export async function listAttendees(
 }
 
 /** The caller's own ticket for a TICKET event, or null if there's nothing to
- *  show them (wrong mode, never RSVP'd GOING, etc). No host check — this is
- *  always scoped to `userId`'s own row. */
+ *  show them (wrong mode, never RSVP'd GOING, host, etc). Always scoped to
+ *  `userId`'s own row. */
 export async function getMyTicket(eventId: string, userId: string): Promise<MyTicketDTO | null> {
   const event = await requireEvent(eventId);
   if (event.attendanceMode !== 'TICKET') return null;
+  // The host is auto-added as GOING when they create the event (see
+  // createEvent) — they're running the door, not paying to get in, so they
+  // never get a ticket even though they're technically GOING.
+  if (userId === event.creatorId) return null;
 
   const participant = await prisma.eventParticipant.findUnique({
     where: { eventId_userId: { eventId, userId } },

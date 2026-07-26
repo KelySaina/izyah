@@ -246,10 +246,11 @@ export async function updateEvent(
       include: { creator: true },
     });
     // Switching an event into TICKET mode shouldn't leave already-GOING
-    // attendees ticketless just because they RSVP'd before the switch.
+    // attendees ticketless just because they RSVP'd before the switch. The
+    // host is excluded — they never get a ticket (see getMyTicket).
     if (updated.attendanceMode === 'TICKET') {
       const missing = await tx.eventParticipant.findMany({
-        where: { eventId, status: 'GOING', ticketCode: null },
+        where: { eventId, status: 'GOING', ticketCode: null, userId: { not: updated.creatorId } },
         select: { id: true },
       });
       await Promise.all(

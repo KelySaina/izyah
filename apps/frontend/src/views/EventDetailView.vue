@@ -220,9 +220,10 @@ async function onToggleAttendee(
       @change="onRsvp"
     />
 
-    <!-- Your ticket QR (TICKET events, once you're GOING) -->
+    <!-- Your ticket QR (TICKET events, once you're GOING — never for the
+         host, who's running the door rather than paying to get in) -->
     <MyTicketCard
-      v-if="event.attendanceMode === 'TICKET' && event.viewerStatus === 'GOING' && !isPast"
+      v-if="event.attendanceMode === 'TICKET' && event.viewerStatus === 'GOING' && !isPast && !isCreator"
       :event-id="event.id"
     />
 
