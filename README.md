@@ -446,6 +446,14 @@ with no flags. Picks up TLS automatically:
 `ghcr.io`, then SSHes to the VPS and runs [`scripts/deploy.sh`](scripts/deploy.sh) — pull,
 recreate, health-gate, and **automatically roll back** on a failed health check.
 
+`deploy.sh` only ever recreates `backend` and `frontend`, so every *other* service keeps
+running whatever spec it was created with — a traefik or minio container can sit for months
+on an image tag the compose files no longer mention. Its preflight therefore compares each
+running container's `com.docker.compose.config-hash` against `docker compose config --hash`
+and prints any service that has drifted, with the command to recreate it. This is advisory,
+never fatal: upgrading the Compose binary can change how hashes are computed, and that must
+not be able to block a deploy.
+
 Doing it by hand instead:
 
 1. Point DNS for your app + API subdomains at the host.
