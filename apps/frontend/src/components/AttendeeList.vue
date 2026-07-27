@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Check } from 'lucide-vue-next';
 import Avatar from '@/components/Avatar.vue';
 import OnlineBadge from '@/components/OnlineBadge.vue';
@@ -44,17 +44,43 @@ const showRows = computed(
   () => !!props.isHost && !!props.attendanceMode && props.attendanceMode !== 'NONE',
 );
 
-// Avatar row caps how many faces it shows and rolls the rest into a "+N" chip,
-// kept to a single line that spreads across the full card width. Capped at 6 so
-// six avatars + the chip still fit without overlap on the narrowest phones.
-const MAX_AVATARS = 6;
-const shownAttendees = computed(() => props.attendees.slice(0, MAX_AVATARS));
-const overflowCount = computed(() => Math.max(0, props.attendees.length - shownAttendees.value.length));
+// "Who's coming" shows GOING + MAYBE only, so the faces match the "Going X ·
+// Maybe Y" count above — never the odd declined/waitlisted row. The overflow
+// number comes from the authoritative counts (also correct if the server ever
+// caps how many rows it returns), so faces shown + "+N" == going + maybe.
+const AVATAR_PX = 36;
+const MAX_AVATARS = 10;
+const coming = computed(() => props.attendees.filter((a) => a.status === 'GOING' || a.status === 'MAYBE'));
+const comingTotal = computed(() => Math.max(props.counts.going + props.counts.maybe, coming.value.length));
+const shownAttendees = computed(() => coming.value.slice(0, MAX_AVATARS));
+const overflowCount = computed(() => Math.max(0, comingTotal.value - shownAttendees.value.length));
 const slotCount = computed(() => shownAttendees.value.length + (overflowCount.value > 0 ? 1 : 0));
-// Only spread edge-to-edge once there are enough faces to fill the row; a
-// couple of avatars flung to opposite corners looks broken, so those stay
-// left-aligned with a normal gap.
+
+// Fill the full row width: measure it, then space the slots evenly. With a big
+// guest list the spacing goes negative so faces overlap (capped at 50%) instead
+// of overflowing or wrapping. A handful of guests stay left-aligned with a
+// normal gap rather than being flung to opposite corners (see `spread`).
+const rowEl = ref<HTMLElement | null>(null);
+const rowWidth = ref(0);
+let ro: ResizeObserver | null = null;
+onMounted(() => {
+  if (!rowEl.value) return;
+  rowWidth.value = rowEl.value.clientWidth;
+  ro = new ResizeObserver((entries) => {
+    rowWidth.value = entries[0]?.contentRect.width ?? rowWidth.value;
+  });
+  ro.observe(rowEl.value);
+});
+onBeforeUnmount(() => ro?.disconnect());
+
 const spread = computed(() => slotCount.value >= 4);
+const stepMargin = computed(() => {
+  const n = slotCount.value;
+  if (!spread.value || n <= 1 || rowWidth.value <= 0) return 0;
+  const gap = (rowWidth.value - n * AVATAR_PX) / (n - 1);
+  return Math.max(-AVATAR_PX / 2, gap);
+});
+const overlapping = computed(() => stepMargin.value < 0);
 </script>
 
 <template>
@@ -90,11 +116,19 @@ const spread = computed(() => slotCount.value >= 4);
       </li>
     </ul>
 
-    <!-- Default: single line of avatars spread across the card + "+N" chip.
-         Wrappers are `flex` so the inline-grid Avatar has no baseline gap and
-         the row sits perfectly straight. -->
-    <div v-else class="flex items-center" :class="spread ? 'justify-between' : 'gap-3'">
-      <div v-for="a in shownAttendees" :key="a.user.id" class="relative flex" :title="a.user.displayName">
+    <!-- Default: single straight line of GOING/MAYBE avatars filling the card
+         width + "+N" chip. Wrappers are `flex` so the inline-grid Avatar has no
+         baseline gap (keeps the row straight); marginLeft spaces/overlaps them
+         to span the full width. -->
+    <div v-else ref="rowEl" class="flex items-center" :class="spread ? '' : 'gap-3'">
+      <div
+        v-for="(a, i) in shownAttendees"
+        :key="a.user.id"
+        class="relative flex rounded-full"
+        :class="overlapping ? 'ring-2 ring-surface' : ''"
+        :style="{ marginLeft: spread && i > 0 ? `${stepMargin}px` : undefined }"
+        :title="a.user.displayName"
+      >
         <Avatar :user="a.user" :size="36" />
         <span
           v-if="a.role === 'HOST'"
@@ -105,7 +139,9 @@ const spread = computed(() => slotCount.value >= 4);
       </div>
       <div
         v-if="overflowCount > 0"
-        class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-xs font-semibold text-fg-2"
+        class="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-xs font-semibold text-fg-2"
+        :class="overlapping ? 'ring-2 ring-surface' : ''"
+        :style="{ marginLeft: spread && shownAttendees.length > 0 ? `${stepMargin}px` : undefined }"
         :title="`${overflowCount} more`"
       >
         +{{ overflowCount }}
