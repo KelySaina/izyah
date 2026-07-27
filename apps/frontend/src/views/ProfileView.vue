@@ -190,11 +190,15 @@ async function togglePush(): Promise<void> {
 
 // Force-refresh the app. An installed PWA can stay resident for days behind a
 // stale service worker, so a new build shows up in a fresh browser tab but not
-// here. This re-fetches the SW and, only when a genuinely new version exists,
-// activates it, drops Workbox's caches, then hard-reloads — missing precache
-// entries fall back to the network automatically, so clearing them is safe.
-// A new build always changes the precache hash and thus the SW, so "no new SW"
-// reliably means we're already up to date.
+// here. Ask the registration to re-fetch sw.js and, only when a genuinely new
+// version exists, wait for it to take control and reload.
+//
+// Deliberately NO manual cache clearing: deleting Workbox's precache out from
+// under a still-controlling service worker can wedge the app (and, because the
+// SW is shared per-origin, the plain browser tab too). The autoUpdate worker
+// swaps its own precache atomically on activation — let it. A new build always
+// changes the precache hash and thus the SW, so "no new SW" reliably means
+// we're already up to date.
 const updating = ref(false);
 const JUST_UPDATED_KEY = 'izyah:justUpdated';
 
@@ -211,24 +215,22 @@ async function checkForUpdates(): Promise<void> {
 
     const hadUpdate = !!reg.waiting; // a version detected earlier, not yet applied
     await reg.update();
-    const foundUpdate = hadUpdate || !!reg.installing || !!reg.waiting;
-
-    if (!foundUpdate) {
+    const incoming = reg.installing ?? reg.waiting;
+    if (!hadUpdate && !incoming) {
       ui.toast("You're already up to date", 'success');
       return;
     }
 
-    // Confirm the update once the reloaded page comes back up.
+    // A new worker exists. Reload once it has activated so the page is served
+    // by the new precache; confirm with a toast after the reload.
     sessionStorage.setItem(JUST_UPDATED_KEY, '1');
-    // Skip the "waiting" phase so the new worker takes over now instead of only
-    // after every tab is closed.
-    reg.waiting?.postMessage({ type: 'SKIP_WAITING' });
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((key) => caches.delete(key)));
-    }
-    window.location.reload(); // replaces the page — updating stays true
-    return;
+    ui.toast('Updating…', 'info');
+    navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), {
+      once: true,
+    });
+    // Fallback if controllerchange doesn't fire promptly (already-waiting worker,
+    // or a browser that won't hand over control to this client): reload anyway.
+    setTimeout(() => window.location.reload(), 3000);
   } catch {
     ui.toast('Could not check for updates', 'error');
   } finally {

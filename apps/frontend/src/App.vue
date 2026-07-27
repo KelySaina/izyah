@@ -34,7 +34,25 @@ const onEventPage = computed(() => route.name === 'event');
 const currentEventId = computed(() => events.current?.id ?? null);
 
 // PWA update lifecycle.
-const { needRefresh, updateServiceWorker } = useRegisterSW();
+//
+// An installed PWA can stay resident for days without ever doing a fresh
+// navigation, so the browser's own service-worker update check rarely runs and
+// the app gets pinned to an old precached build — a new version shows up in the
+// browser (every visit revalidates sw.js) but not in the installed app. Fix it
+// by actively asking the registration to check for a new worker on a timer and
+// every time the app comes back to the foreground; autoUpdate then activates
+// the new worker and reloads.
+const { needRefresh, updateServiceWorker } = useRegisterSW({
+  onRegisteredSW(_swUrl, registration) {
+    if (!registration) return;
+    const check = () => void registration.update();
+    setInterval(check, 60 * 60 * 1000); // hourly, for a long-lived session
+    window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') check();
+    });
+  },
+});
 
 watch(
   () => identity.ready && !!identity.id,
