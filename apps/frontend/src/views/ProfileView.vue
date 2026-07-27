@@ -147,6 +147,14 @@ onMounted(async () => {
   pushOn.value = !!(await getPushSubscription().catch(() => null));
 });
 
+// Confirm a force-refresh that reloaded the page (see checkForUpdates).
+onMounted(() => {
+  if (sessionStorage.getItem(JUST_UPDATED_KEY)) {
+    sessionStorage.removeItem(JUST_UPDATED_KEY);
+    ui.toast('Updated to the latest version', 'success');
+  }
+});
+
 async function togglePush(): Promise<void> {
   if (pushBusy.value) return;
   pushBusy.value = true;
@@ -182,31 +190,49 @@ async function togglePush(): Promise<void> {
 
 // Force-refresh the app. An installed PWA can stay resident for days behind a
 // stale service worker, so a new build shows up in a fresh browser tab but not
-// here. This re-fetches the SW, activates any waiting one, drops Workbox's
-// caches, then hard-reloads — missing precache entries fall back to the network
-// automatically, so clearing them is safe.
+// here. This re-fetches the SW and, only when a genuinely new version exists,
+// activates it, drops Workbox's caches, then hard-reloads — missing precache
+// entries fall back to the network automatically, so clearing them is safe.
+// A new build always changes the precache hash and thus the SW, so "no new SW"
+// reliably means we're already up to date.
 const updating = ref(false);
+const JUST_UPDATED_KEY = 'izyah:justUpdated';
 
 async function checkForUpdates(): Promise<void> {
   if (updating.value) return;
   updating.value = true;
   try {
     const reg = await navigator.serviceWorker?.getRegistration();
-    if (reg) {
-      await reg.update();
-      // Skip the "waiting" phase so a freshly-installed worker takes over now
-      // instead of only after every tab is closed.
-      reg.waiting?.postMessage({ type: 'SKIP_WAITING' });
+    if (!reg) {
+      // No service worker in control (dev, or unsupported/insecure context).
+      ui.toast("You're already up to date", 'success');
+      return;
     }
+
+    const hadUpdate = !!reg.waiting; // a version detected earlier, not yet applied
+    await reg.update();
+    const foundUpdate = hadUpdate || !!reg.installing || !!reg.waiting;
+
+    if (!foundUpdate) {
+      ui.toast("You're already up to date", 'success');
+      return;
+    }
+
+    // Confirm the update once the reloaded page comes back up.
+    sessionStorage.setItem(JUST_UPDATED_KEY, '1');
+    // Skip the "waiting" phase so the new worker takes over now instead of only
+    // after every tab is closed.
+    reg.waiting?.postMessage({ type: 'SKIP_WAITING' });
     if ('caches' in window) {
       const keys = await caches.keys();
       await Promise.all(keys.map((key) => caches.delete(key)));
     }
+    window.location.reload(); // replaces the page — updating stays true
+    return;
   } catch {
-    // Best-effort: a hard reload still helps even if the SW/cache calls fail.
+    ui.toast('Could not check for updates', 'error');
   } finally {
-    // Not reset to false — the reload replaces the whole page.
-    window.location.reload();
+    if (!sessionStorage.getItem(JUST_UPDATED_KEY)) updating.value = false;
   }
 }
 </script>
