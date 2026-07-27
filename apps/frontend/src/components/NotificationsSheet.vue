@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Bell, BarChart3, CalendarCheck, Check, ClipboardCheck, HelpCircle, UserX, Search, X } from 'lucide-vue-next';
+import { Bell, BarChart3, CalendarClock, CalendarCheck, Check, ClipboardCheck, HelpCircle, UserX, Search, X } from 'lucide-vue-next';
 import EmptyState from '@/components/EmptyState.vue';
 import { useNotificationsStore } from '@/stores/notifications';
 import { useChatStore } from '@/stores/chat';
@@ -67,12 +67,19 @@ interface TaskDonePayload {
   taskTitle: string;
   displayName: string;
 }
+interface EventReminderPayload {
+  eventTitle: string;
+  eventSlug: string;
+  startTime?: string;
+  allDay?: string;
+}
 
 function icon(n: NotificationDTO) {
   if (n.type === 'task_claimed' || n.type === 'task_created' || n.type === 'task_released')
     return ClipboardCheck;
   if (n.type === 'task_done') return Check;
   if (n.type === 'waitlist_promoted') return CalendarCheck;
+  if (n.type === 'event_reminder') return CalendarClock;
   if (n.type === 'poll_created') return BarChart3;
   if (n.type === 'rsvp_maybe') return HelpCircle;
   if (n.type === 'rsvp_not_going') return UserX;
@@ -116,6 +123,11 @@ function text(n: NotificationDTO): string {
   if (n.type === 'task_done') {
     const p = n.payload as TaskDonePayload;
     return `${p.displayName} finished "${p.taskTitle}" for "${p.eventTitle}"`;
+  }
+  if (n.type === 'event_reminder') {
+    const p = n.payload as EventReminderPayload;
+    const when = p.allDay ? 'is tomorrow' : p.startTime ? `starts at ${p.startTime}` : 'is coming up';
+    return `Reminder: "${p.eventTitle}" ${when}`;
   }
   return 'New notification';
 }

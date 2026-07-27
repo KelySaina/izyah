@@ -49,6 +49,7 @@ export interface EventDTO {
   attendanceMode: AttendanceMode;
   minPafAmount: number | null;
   ticketPrice: number | null;
+  reminderLeadMinutes: number | null;
   creatorId: string;
   creator?: UserDTO;
   createdAt: string;
@@ -146,6 +147,8 @@ export interface CreateEventInput {
   attendanceMode?: AttendanceMode;
   minPafAmount?: number | null;
   ticketPrice?: number | null;
+  /** Minutes before the start to remind GOING/MAYBE attendees; null = off. */
+  reminderLeadMinutes?: number | null;
 }
 export type UpdateEventInput = Partial<CreateEventInput>;
 

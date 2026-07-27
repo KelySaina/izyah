@@ -37,6 +37,7 @@ interface FormDraft {
   attendanceMode: AttendanceMode;
   minPafAmount: string;
   ticketPrice: string;
+  reminderLeadMinutes: number | null;
 }
 
 function readDraft(): Partial<FormDraft> | null {
@@ -112,6 +113,15 @@ const form = reactive<FormDraft>({
     draft?.minPafAmount ?? (props.initial?.minPafAmount != null ? String(props.initial.minPafAmount) : ''),
   ticketPrice:
     draft?.ticketPrice ?? (props.initial?.ticketPrice != null ? String(props.initial.ticketPrice) : ''),
+  // null is a real choice ("no reminder"), so distinguish it from "not set":
+  // a restored draft wins, else an existing event's stored value, else the
+  // 2h-before default for a fresh create.
+  reminderLeadMinutes:
+    draft && draft.reminderLeadMinutes !== undefined
+      ? draft.reminderLeadMinutes
+      : props.initial
+        ? (props.initial.reminderLeadMinutes ?? null)
+        : 120,
 });
 
 if (props.draftKey) {
@@ -182,6 +192,36 @@ const minDate = computed(() => (props.initial ? undefined : todayStr));
 
 const visibilityLabel = computed(
   () => visibilityOptions.find((o) => o.value === form.visibility)?.label ?? 'Not chosen',
+);
+
+// Reminder lead-time choices. Timed events pick an offset before the start;
+// date-only events can only be on/off (they fire the evening before), so the
+// specific minutes are meaningless there — keep the picker honest per case.
+const reminderOptions = computed<{ value: number | null; label: string }[]>(() =>
+  form.startTime
+    ? [
+        { value: null, label: 'No reminder' },
+        { value: 30, label: '30 minutes before' },
+        { value: 60, label: '1 hour before' },
+        { value: 120, label: '2 hours before' },
+        { value: 180, label: '3 hours before' },
+        { value: 1440, label: 'The day before' },
+      ]
+    : [
+        { value: null, label: 'No reminder' },
+        { value: 120, label: 'The evening before' },
+      ],
+);
+// If a start time is removed, collapse any timed offset to the plain "on" value
+// so the picker still shows a valid option (the backend treats every non-null
+// value the same for a date-only event anyway).
+watch(
+  () => form.startTime,
+  (t) => {
+    if (!t && form.reminderLeadMinutes != null && form.reminderLeadMinutes !== 120) {
+      form.reminderLeadMinutes = 120;
+    }
+  },
 );
 
 function onLocationUpdate(v: {
@@ -262,6 +302,7 @@ function onSubmit(): void {
     attendanceMode: form.attendanceMode,
     minPafAmount: form.attendanceMode === 'MIN_PAF' ? Number(minPafTrimmed) : null,
     ticketPrice: form.attendanceMode === 'TICKET' ? Number(ticketPriceTrimmed) : null,
+    reminderLeadMinutes: form.reminderLeadMinutes,
   });
 }
 </script>
@@ -461,6 +502,22 @@ function onSubmit(): void {
         />
         <p class="mt-1 text-xs text-fg-3">
           Leave blank for no limit. Once full, new RSVPs join a waitlist.
+        </p>
+      </div>
+
+      <div>
+        <label class="label" for="ev-reminder">Reminder</label>
+        <select id="ev-reminder" v-model="form.reminderLeadMinutes" class="input">
+          <option v-for="opt in reminderOptions" :key="String(opt.value)" :value="opt.value">
+            {{ opt.label }}
+          </option>
+        </select>
+        <p class="mt-1 text-xs text-fg-3">
+          <template v-if="form.reminderLeadMinutes == null">No heads-up notification will be sent.</template>
+          <template v-else-if="!form.startTime">
+            Everyone going or maybe gets a push the evening before.
+          </template>
+          <template v-else>Everyone going or maybe gets a push before it starts.</template>
         </p>
       </div>
 

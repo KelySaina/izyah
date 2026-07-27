@@ -15,6 +15,9 @@ const attendanceMode = z.enum(['NONE', 'MIN_PAF', 'TICKET']);
 // Whole-currency-unit amounts — nullable so a mode switch away can clear them.
 const minPafAmount = z.coerce.number().int().min(1).max(10_000_000).nullable().optional();
 const ticketPrice = z.coerce.number().int().min(1).max(10_000_000).nullable().optional();
+// Reminder lead time in minutes before the start (null = no reminder). Capped
+// at 7 days. For date-only events the value only toggles the reminder on/off.
+const reminderLeadMinutes = z.coerce.number().int().min(0).max(10_080).nullable().optional();
 
 // Enforces that the amount field always travels together with the mode that
 // needs it, in the SAME request — callers can't rely on a previously-stored
@@ -58,6 +61,7 @@ export const createEventSchema = z
     attendanceMode: attendanceMode.default('NONE'),
     minPafAmount,
     ticketPrice,
+    reminderLeadMinutes,
   })
   .superRefine(checkAttendanceShape);
 
@@ -80,6 +84,7 @@ export const updateEventSchema = z
     attendanceMode: attendanceMode.optional(),
     minPafAmount,
     ticketPrice,
+    reminderLeadMinutes,
   })
   .refine((o) => Object.keys(o).length > 0, { message: 'nothing to update' })
   .superRefine((o, ctx) => {

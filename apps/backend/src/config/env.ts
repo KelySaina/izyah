@@ -72,6 +72,13 @@ const schema = z.object({
   MINIO_PUBLIC_URL: z.string().default('http://localhost:9000'),
 
   RUN_WORKER_INLINE: envBool(false),
+
+  // Single-region app: events store a wall-clock date/time with no timezone, so
+  // reminders interpret them against this fixed offset. Default +180 = EAT
+  // (UTC+3, no DST), where the app is used. Change if the audience moves zones.
+  APP_UTC_OFFSET_MINUTES: z.coerce.number().int().min(-720).max(840).default(180),
+  // How often the reminder scan runs, ms. Reminder timing is granular to this.
+  REMINDER_SCAN_INTERVAL_MS: z.coerce.number().int().min(30_000).default(300_000),
 });
 
 const parsed = schema.safeParse(process.env);

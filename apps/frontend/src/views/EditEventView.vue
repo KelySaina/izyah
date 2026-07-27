@@ -52,6 +52,7 @@ const initial = computed<Partial<CreateEventInput>>(() =>
         attendanceMode: event.value.attendanceMode,
         minPafAmount: event.value.minPafAmount,
         ticketPrice: event.value.ticketPrice,
+        reminderLeadMinutes: event.value.reminderLeadMinutes,
       }
     : {},
 );

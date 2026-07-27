@@ -25,6 +25,10 @@ function toPushMessage(type: string, payload: Record<string, unknown> | null): P
   if (type === 'waitlist_promoted') {
     return { title: "You're in!", body: `You're off the waitlist for "${p.eventTitle}"`, url };
   }
+  if (type === 'event_reminder') {
+    const when = p.allDay ? 'is tomorrow' : p.startTime ? `starts at ${p.startTime}` : 'is coming up';
+    return { title: 'Coming up', body: `"${p.eventTitle}" ${when}`, url };
+  }
   if (type === 'task_claimed') {
     return {
       title: p.eventTitle ?? "Izy'Ah",

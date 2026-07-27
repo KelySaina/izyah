@@ -3,9 +3,12 @@ import { createBullConnection } from '../../lib/redis';
 import { QUEUE_NAMES } from '../index';
 import { processMedia } from './media.worker';
 import { processNotification } from './notification.worker';
+import { runReminderScan } from '../../modules/notifications/reminder.service';
+import { env } from '../../config/env';
 import { logger } from '../../lib/logger';
 
 const workers: Worker[] = [];
+let reminderTimer: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Start background workers. In dev the backend runs them in-process
@@ -23,10 +26,22 @@ export async function startInlineWorkers(): Promise<void> {
   for (const w of workers) {
     w.on('failed', (job, err) => logger.warn({ jobId: job?.id, err }, 'job failed'));
   }
-  logger.info(`⚙️  Workers started: ${workers.length}`);
+
+  // Event reminders: a DB-state-driven scan on an interval (see
+  // reminder.service). Idempotent, so restarts and overlaps are harmless; runs
+  // wherever the workers run (inline in dev, the worker service in prod).
+  const scan = () => runReminderScan().catch((err) => logger.warn({ err }, 'reminder scan failed'));
+  reminderTimer = setInterval(scan, env.REMINDER_SCAN_INTERVAL_MS);
+  void scan(); // once at boot so a restart doesn't delay a due reminder
+
+  logger.info(`⚙️  Workers started: ${workers.length} (+ reminder scan)`);
 }
 
 export async function stopWorkers(): Promise<void> {
+  if (reminderTimer) {
+    clearInterval(reminderTimer);
+    reminderTimer = null;
+  }
   await Promise.all(workers.map((w) => w.close()));
   workers.length = 0;
 }

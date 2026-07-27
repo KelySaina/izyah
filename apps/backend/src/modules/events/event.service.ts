@@ -34,6 +34,7 @@ export interface EventDTO {
   attendanceMode: Event['attendanceMode'];
   minPafAmount: number | null;
   ticketPrice: number | null;
+  reminderLeadMinutes: number | null;
   creatorId: string;
   creator?: UserDTO;
   createdAt: Date;
@@ -62,6 +63,7 @@ function toEventDTO(event: EventWithCreator, counts: RsvpCounts): EventDTO {
     attendanceMode: event.attendanceMode,
     minPafAmount: event.minPafAmount,
     ticketPrice: event.ticketPrice,
+    reminderLeadMinutes: event.reminderLeadMinutes,
     creatorId: event.creatorId,
     creator: event.creator ? toUserDTO(event.creator) : undefined,
     createdAt: event.createdAt,
@@ -105,6 +107,11 @@ export async function createEvent(creatorId: string, input: CreateEventInput): P
         attendanceMode: input.attendanceMode,
         minPafAmount: input.minPafAmount ?? null,
         ticketPrice: input.ticketPrice ?? null,
+        // Default handled by the DB column (120), so only override when the
+        // client actually sent a value (including an explicit null = off).
+        ...(input.reminderLeadMinutes !== undefined
+          ? { reminderLeadMinutes: input.reminderLeadMinutes }
+          : {}),
         creatorId,
       },
       include: { creator: true },
@@ -257,10 +264,21 @@ export async function updateEvent(
     if (input.attendanceMode !== 'TICKET') data.ticketPrice = null;
   }
 
+  // Re-arm the reminder if anything that moves its fire time changed — a
+  // reschedule or a lead-time change should let an already-sent reminder go
+  // out again for the new time. (updateEventSchema can't clear startTime, but
+  // guarding on it is harmless and future-proof.)
+  const rearmReminder =
+    input.date !== undefined || input.startTime !== undefined || input.reminderLeadMinutes !== undefined;
+  const updateData: Prisma.EventUpdateInput = {
+    ...data,
+    ...(rearmReminder ? { reminderSentAt: null } : {}),
+  };
+
   const event = await prisma.$transaction(async (tx) => {
     const updated = await tx.event.update({
       where: { id: eventId },
-      data,
+      data: updateData,
       include: { creator: true },
     });
     // Switching an event into TICKET mode shouldn't leave already-GOING

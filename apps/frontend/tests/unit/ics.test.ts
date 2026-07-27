@@ -19,6 +19,7 @@ const event: EventDTO = {
   attendanceMode: 'NONE',
   minPafAmount: null,
   ticketPrice: null,
+  reminderLeadMinutes: 120,
   creatorId: '11111111-1111-1111-1111-111111111111',
   createdAt: '2030-01-01T00:00:00.000Z',
   counts: { going: 1, maybe: 0, notGoing: 0, waitlist: 0, total: 1 },
