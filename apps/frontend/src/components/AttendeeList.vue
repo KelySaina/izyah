@@ -43,6 +43,13 @@ function onToggle(a: AttendeeDTO): void {
 const showRows = computed(
   () => !!props.isHost && !!props.attendanceMode && props.attendanceMode !== 'NONE',
 );
+
+// Avatar grid caps how many faces it shows and rolls the rest into a "+N" chip,
+// kept to a single overlapping line so it never wraps or blows up the layout
+// when an event has a lot of attendees.
+const MAX_AVATARS = 8;
+const shownAttendees = computed(() => props.attendees.slice(0, MAX_AVATARS));
+const overflowCount = computed(() => Math.max(0, props.attendees.length - shownAttendees.value.length));
 </script>
 
 <template>
@@ -78,12 +85,14 @@ const showRows = computed(
       </li>
     </ul>
 
-    <!-- Default: plain avatar grid -->
-    <div v-else class="flex flex-wrap gap-3">
+    <!-- Default: single-line overlapping avatar stack + "+N" overflow chip -->
+    <div v-else class="flex items-center">
       <div
-        v-for="a in attendees"
+        v-for="(a, i) in shownAttendees"
         :key="a.user.id"
-        class="relative"
+        class="relative rounded-full ring-2 ring-surface"
+        :class="i > 0 ? '-ml-2.5' : ''"
+        :style="{ zIndex: shownAttendees.length - i }"
         :title="a.user.displayName"
       >
         <Avatar :user="a.user" :size="36" />
@@ -93,6 +102,13 @@ const showRows = computed(
         >
           Host
         </span>
+      </div>
+      <div
+        v-if="overflowCount > 0"
+        class="-ml-2.5 grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-xs font-semibold text-fg-2 ring-2 ring-surface"
+        :title="`${overflowCount} more`"
+      >
+        +{{ overflowCount }}
       </div>
     </div>
   </div>
