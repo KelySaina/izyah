@@ -44,12 +44,17 @@ const showRows = computed(
   () => !!props.isHost && !!props.attendanceMode && props.attendanceMode !== 'NONE',
 );
 
-// Avatar grid caps how many faces it shows and rolls the rest into a "+N" chip,
-// kept to a single overlapping line so it never wraps or blows up the layout
-// when an event has a lot of attendees.
-const MAX_AVATARS = 8;
+// Avatar row caps how many faces it shows and rolls the rest into a "+N" chip,
+// kept to a single line that spreads across the full card width. Capped at 6 so
+// six avatars + the chip still fit without overlap on the narrowest phones.
+const MAX_AVATARS = 6;
 const shownAttendees = computed(() => props.attendees.slice(0, MAX_AVATARS));
 const overflowCount = computed(() => Math.max(0, props.attendees.length - shownAttendees.value.length));
+const slotCount = computed(() => shownAttendees.value.length + (overflowCount.value > 0 ? 1 : 0));
+// Only spread edge-to-edge once there are enough faces to fill the row; a
+// couple of avatars flung to opposite corners looks broken, so those stay
+// left-aligned with a normal gap.
+const spread = computed(() => slotCount.value >= 4);
 </script>
 
 <template>
@@ -85,16 +90,11 @@ const overflowCount = computed(() => Math.max(0, props.attendees.length - shownA
       </li>
     </ul>
 
-    <!-- Default: single-line overlapping avatar stack + "+N" overflow chip -->
-    <div v-else class="flex items-center">
-      <div
-        v-for="(a, i) in shownAttendees"
-        :key="a.user.id"
-        class="relative rounded-full ring-2 ring-surface"
-        :class="i > 0 ? '-ml-2.5' : ''"
-        :style="{ zIndex: shownAttendees.length - i }"
-        :title="a.user.displayName"
-      >
+    <!-- Default: single line of avatars spread across the card + "+N" chip.
+         Wrappers are `flex` so the inline-grid Avatar has no baseline gap and
+         the row sits perfectly straight. -->
+    <div v-else class="flex items-center" :class="spread ? 'justify-between' : 'gap-3'">
+      <div v-for="a in shownAttendees" :key="a.user.id" class="relative flex" :title="a.user.displayName">
         <Avatar :user="a.user" :size="36" />
         <span
           v-if="a.role === 'HOST'"
@@ -105,7 +105,7 @@ const overflowCount = computed(() => Math.max(0, props.attendees.length - shownA
       </div>
       <div
         v-if="overflowCount > 0"
-        class="-ml-2.5 grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-xs font-semibold text-fg-2 ring-2 ring-surface"
+        class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-xs font-semibold text-fg-2"
         :title="`${overflowCount} more`"
       >
         +{{ overflowCount }}
