@@ -6,7 +6,11 @@
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" href="/favicon.png" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
+    <!-- interactive-widget=resizes-content: when the on-screen keyboard opens,
+         shrink the layout viewport instead of letting the keyboard overlay it,
+         so fixed-bottom UI (the chat input, form fields) sits above it rather
+         than behind it. Ignored by browsers that don't support it (no regression). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#101012" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
