@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { Check, Download, Moon, Sun, ImagePlus, Camera, ShieldCheck, LogIn, LogOut, Bell, BellOff, BarChart3 } from 'lucide-vue-next';
+import { Check, Download, Moon, Sun, ImagePlus, Camera, ShieldCheck, LogIn, LogOut, Bell, BellOff, BarChart3, RefreshCw } from 'lucide-vue-next';
 import { useImageUpload } from '@/composables/useImageUpload';
 import { useIdentityStore } from '@/stores/identity';
 import { useUiStore } from '@/stores/ui';
@@ -179,6 +179,36 @@ async function togglePush(): Promise<void> {
     pushBusy.value = false;
   }
 }
+
+// Force-refresh the app. An installed PWA can stay resident for days behind a
+// stale service worker, so a new build shows up in a fresh browser tab but not
+// here. This re-fetches the SW, activates any waiting one, drops Workbox's
+// caches, then hard-reloads — missing precache entries fall back to the network
+// automatically, so clearing them is safe.
+const updating = ref(false);
+
+async function checkForUpdates(): Promise<void> {
+  if (updating.value) return;
+  updating.value = true;
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration();
+    if (reg) {
+      await reg.update();
+      // Skip the "waiting" phase so a freshly-installed worker takes over now
+      // instead of only after every tab is closed.
+      reg.waiting?.postMessage({ type: 'SKIP_WAITING' });
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+    }
+  } catch {
+    // Best-effort: a hard reload still helps even if the SW/cache calls fail.
+  } finally {
+    // Not reset to false — the reload replaces the whole page.
+    window.location.reload();
+  }
+}
 </script>
 
 <template>
@@ -306,6 +336,10 @@ async function togglePush(): Promise<void> {
       </button>
       <button type="button" class="btn-ghost w-full" @click="analyticsOpen = true">
         <BarChart3 :size="18" /> View analytics
+      </button>
+      <button type="button" class="btn-ghost w-full" :disabled="updating" @click="checkForUpdates">
+        <RefreshCw :size="18" :class="updating ? 'animate-spin' : ''" />
+        {{ updating ? 'Updating…' : 'Check for updates' }}
       </button>
     </section>
 
