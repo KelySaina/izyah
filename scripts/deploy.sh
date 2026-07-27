@@ -98,6 +98,64 @@ warn_stale_containers() {
     "$(pwd)" "$COMPOSE" "${drifted[*]}"
 }
 
+# Informational only: flag bind-mounted single FILES whose content inside a
+# running container no longer matches the host copy.
+#
+# Docker binds a single-file mount by inode, and `git checkout` replaces a
+# modified file rather than rewriting it in place — new inode, so the running
+# container keeps serving the old content indefinitely. Nothing else here can
+# see it: the compose spec is byte-identical, so warn_stale_containers' hash
+# comparison passes happily. Verified both halves of this locally — after a
+# replace-by-rename the host shows the new file while `docker exec cat` inside
+# the container still returns the old one.
+#
+# This matters most for infra/traefik/dynamic.yml: a CSP or middleware change
+# committed to the repo appears deployed, and simply isn't. It applies equally
+# to the other single-file mounts (.env into backup, create-buckets.sh into
+# minio-init).
+#
+# `docker exec` is the only correct probe — `docker cp` resolves the host path
+# directly, bypassing the container's mount namespace, and reports in-sync when
+# the running process sees something else.
+stale_mounted_files_for() { # $1 = container; prints each stale destination path
+  local cid="$1" src dest out
+  while IFS="$(printf '\t')" read -r src dest; do
+    [ -n "${src:-}" ] && [ -n "${dest:-}" ] || continue
+    # Regular files only — skips directory mounts and the docker socket.
+    [ -f "$src" ] || continue
+    # No shell/cat in the image (distroless), or not running: can't tell, so
+    # stay quiet rather than cry wolf.
+    out="$(docker exec "$cid" cat "$dest" 2>/dev/null)" || continue
+    [ "$(printf '%s' "$out")" = "$(printf '%s' "$(cat "$src")")" ] || printf '%s\n' "$dest"
+  done < <(docker inspect "$cid" \
+    --format '{{range .Mounts}}{{if eq .Type "bind"}}{{.Source}}{{"\t"}}{{.Destination}}{{"\n"}}{{end}}{{end}}' \
+    2>/dev/null || true)
+}
+
+warn_stale_mounted_files() {
+  local service cid dest stale=() services=()
+  while read -r service; do
+    [ -n "$service" ] && services+=("$service")
+  done < <($COMPOSE config --services 2>/dev/null || true)
+
+  for service in "${services[@]:-}"; do
+    [ -n "$service" ] || continue
+    cid="$($COMPOSE ps -q "$service" 2>/dev/null | head -n1)"
+    [ -n "$cid" ] || continue
+    while read -r dest; do
+      [ -n "$dest" ] && stale+=("$service ($dest)")
+    done < <(stale_mounted_files_for "$cid")
+  done
+
+  [ "${#stale[@]}" -gt 0 ] || return 0
+
+  log "STALE MOUNTED FILES — the container is running older content than the repo:"
+  printf '    %s\n' "${stale[@]}"
+  printf '\n  A single-file bind mount follows the inode, and git replaces files.\n'
+  printf '  Recreate the service to re-bind it:\n'
+  printf '      cd %s && \\\n        %s up -d --force-recreate --no-deps <service>\n\n' "$(pwd)" "$COMPOSE"
+}
+
 # Preflight: catch config that would crash the backend at boot BEFORE we
 # recreate containers, so it fails in 1s with a clear reason instead of a
 # 2-minute health-timeout + rollback.
@@ -105,6 +163,7 @@ preflight() {
   [ -f .env ] || die ".env not found in $(pwd) — cannot deploy."
   warn_new_env_keys
   warn_stale_containers
+  warn_stale_mounted_files
   local node_env session
   node_env="$(read_env NODE_ENV)"
   session="$(read_env SESSION_SECRET)"

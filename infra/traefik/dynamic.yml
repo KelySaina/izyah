@@ -12,17 +12,27 @@ http:
         stsSeconds: 31536000
         stsIncludeSubdomains: true
         # No 'unsafe-inline'/'unsafe-eval' for scripts — blocks injected
-        # <script>/on*= payloads even if a future XSS bug slips one in.
-        # connect-src stays broad (any https/wss origin) since the API can
-        # live on a different domain than the frontend and this file has no
-        # per-deployment templating; style-src keeps 'unsafe-inline' because
-        # Vue/Leaflet set real style="" attributes at runtime.
+        # <script>/on*= payloads even if a future XSS bug slips one in. That
+        # is the part of this policy doing the real work; keep it strict.
+        #
+        # img-src/media-src/connect-src all stay broad (any https origin) for
+        # the same reason: user uploads are served from MinIO on a *separate*
+        # per-deployment host (media.<domain>), the API can be on another one
+        # again, and this file is mounted verbatim with no templating — so
+        # naming those hosts here is impossible without generating the file
+        # per install, which is exactly the kind of drift that has bitten this
+        # deployment before. Images and video cannot execute, so the residual
+        # risk is URL-based exfiltration, which connect-src https: already
+        # allows anyway. blob: covers object URLs (media previews, the .ics
+        # download). style-src keeps 'unsafe-inline' because Vue and Leaflet
+        # set real style="" attributes at runtime.
         contentSecurityPolicy: >-
           default-src 'self';
           base-uri 'self';
           frame-ancestors 'none';
           object-src 'none';
-          img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org;
+          img-src 'self' data: blob: https:;
+          media-src 'self' blob: https:;
           style-src 'self' 'unsafe-inline';
           script-src 'self';
           worker-src 'self';
