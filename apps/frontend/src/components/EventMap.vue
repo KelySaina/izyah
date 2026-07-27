@@ -69,7 +69,10 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="space-y-2">
-    <div :class="isFull ? 'fixed inset-0 z-[70] bg-app p-2 pt-[max(0.5rem,env(safe-area-inset-top))]' : 'relative h-48'">
+    <!-- `isolate` keeps Leaflet's internal z-indexes (panes ~400, controls
+         ~1000) inside the map's own stacking context, so they can't paint over
+         app modals (chat / notifications sheets sit at z-50). -->
+    <div class="isolate" :class="isFull ? 'fixed inset-0 z-[70] bg-app p-2 pt-[max(0.5rem,env(safe-area-inset-top))]' : 'relative h-48'">
       <div ref="el" class="h-full w-full overflow-hidden rounded-xl border border-line/10" />
       <button
         type="button"

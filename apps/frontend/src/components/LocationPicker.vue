@@ -238,7 +238,9 @@ function clearPin(): void {
     </div>
 
     <!-- Map: tap or drag the pin to fine-tune -->
-    <div :class="isFull ? 'fixed inset-0 z-[70] bg-app p-2 pt-[max(0.5rem,env(safe-area-inset-top))]' : 'relative h-52'">
+    <!-- `isolate`: contain Leaflet's internal z-indexes so the map can't paint
+         over app modals (chat / notifications sheets sit at z-50). -->
+    <div class="isolate" :class="isFull ? 'fixed inset-0 z-[70] bg-app p-2 pt-[max(0.5rem,env(safe-area-inset-top))]' : 'relative h-52'">
       <div ref="el" class="h-full w-full overflow-hidden rounded-xl border border-line/10" />
       <button
         type="button"
