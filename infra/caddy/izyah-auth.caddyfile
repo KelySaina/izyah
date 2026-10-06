@@ -1,0 +1,21 @@
+# ============================================================================
+# Izy'Ah — Logto (OIDC) site blocks. Installed only by
+# `scripts/caddy-site.sh --install --with-auth`, because the logto service sits
+# behind the `auth` compose profile and is dormant until M2.
+#
+# Installing these while logto is not running would have Caddy fetch a
+# certificate for each hostname and then answer 502 on every request — a
+# working proxy in front of nothing, which looks like an app fault.
+# ============================================================================
+
+{$AUTH_DOMAIN} {
+	encode zstd gzip
+	# No security-headers import: Logto serves its own sign-in UI and sets its own
+	# policy. The app's CSP (script-src 'self') would block it.
+	reverse_proxy 127.0.0.1:{$AUTH_HOST_PORT:4315}
+}
+
+{$AUTH_ADMIN_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:{$AUTH_ADMIN_HOST_PORT:4316}
+}

@@ -1,0 +1,79 @@
+# ============================================================================
+# Izy'Ah — site blocks for a Caddy running on the host (apt + systemd), not in
+# this stack. Caddy owns 80/443 and ACME for every app on the box, which is why
+# Traefik is no longer here: it bound those ports and could not share them.
+#
+# Each service is published on 127.0.0.1 by docker-compose.yml and reached here
+# by port. Rendered and installed by scripts/caddy-site.sh, which fills the
+# tokens from .env. They are Caddy's own environment placeholders, so the file
+# is also usable as-is with those variables exported.
+# ============================================================================
+
+# Exactly what Traefik's `security-headers@file` middleware set, so nothing about
+# the app's threat model changes with the proxy. It was attached to the frontend
+# and the backend only, and it stays that way below: Adminer and the Logto UI
+# were never served under this policy and would break under its script-src.
+(izyah_security_headers) {
+	header {
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+		# Kept byte-for-byte from infra/traefik/dynamic.yml. The part doing the real
+		# work is script-src 'self' with no 'unsafe-inline'/'unsafe-eval': it blocks
+		# injected <script>/on*= payloads even if an XSS bug slips one in. img/media/
+		# connect stay broad because uploads come from MinIO on a separate per-deploy
+		# host and this file is not templated per install. style-src keeps
+		# 'unsafe-inline' because Vue and Leaflet set real style="" at runtime.
+		Content-Security-Policy "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self'; manifest-src 'self'; connect-src 'self' https: wss:"
+
+		# Traefik blanked these with customResponseHeaders; Caddy removes them outright.
+		# -Via is not in that original list because Traefik never added one — Caddy does,
+		# and leaving it would name the proxy on every response, which is exactly what
+		# blanking Server was meant to avoid.
+		-X-Powered-By
+		-Server
+		-Via
+	}
+}
+
+# --- the app ---------------------------------------------------------------
+{$APP_DOMAIN} {
+	encode zstd gzip
+	import izyah_security_headers
+	reverse_proxy 127.0.0.1:{$FRONTEND_HOST_PORT:4310}
+}
+
+# --- the API (Express REST + Socket.IO) ------------------------------------
+{$API_DOMAIN} {
+	encode zstd gzip
+	import izyah_security_headers
+
+	# Socket.IO starts as HTTP and upgrades to WebSocket. Caddy proxies an upgrade
+	# through without being told to, so there is no counterpart here to Traefik's
+	# sticky-cookie label — that one mattered only above a single replica, and this
+	# runs one. Scale the backend out and it has to come back, as sticky sessions
+	# or a Redis adapter, or sockets will land on the wrong instance.
+	reverse_proxy 127.0.0.1:{$BACKEND_HOST_PORT:4311}
+}
+
+# --- object storage (public media + avatars) -------------------------------
+# No security headers here, as before: this serves user uploads, not the app, and
+# the bucket policy is what makes them readable (infra/minio/create-buckets.sh).
+{$MINIO_CONSOLE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:{$MINIO_HOST_PORT:4313}
+}
+
+# --- database admin --------------------------------------------------------
+# Traefik gated this with the admin-auth basicauth middleware. Caddy's basic_auth
+# takes bcrypt only — an apr1 hash from `openssl passwd -apr1` is NOT accepted, so
+# this credential had to be re-minted: caddy hash-password --plaintext '<password>'
+{$ADMINER_DOMAIN} {
+	basic_auth {
+		{$ADMIN_AUTH_USER} {$ADMIN_AUTH_BCRYPT}
+	}
+	reverse_proxy 127.0.0.1:{$ADMINER_HOST_PORT:4312}
+}

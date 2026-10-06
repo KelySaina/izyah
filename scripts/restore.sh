@@ -7,9 +7,10 @@
 #                                                        -> backups/izyah-backup-*.tar.gz
 #   2. Copy that file to the NEW box (scp), into ~/izyah/backups/.
 #   3. On the NEW box:  ./setup.sh --domain ... (or --nip/--http)
-#        This installs Docker/Traefik and writes a fresh .env +
-#        docker-compose.prod.yml, but does NOT start the stack — exactly the
-#        state this script expects.
+#        This installs Docker and writes a fresh .env, but does NOT start the
+#        stack — exactly the state this script expects. The reverse proxy is a
+#        Caddy on the host and is set up separately, after the stack is up:
+#        sudo ./scripts/caddy-site.sh --install
 #   4. On the NEW box:  bash scripts/restore.sh backups/izyah-backup-*.tar.gz
 #        Overwrites the just-generated .env with the backed-up one (so DB/
 #        MinIO passwords and SESSION_SECRET match the restored data, and
@@ -17,9 +18,9 @@
 #        MinIO, then brings the whole stack up itself.
 #
 # If the new box uses a DIFFERENT domain/IP than the old one, edit the
-# APP_DOMAIN/API_DOMAIN/etc. lines in .env after this script finishes (before
-# that, Traefik isn't up yet, so there's nothing to restart) — the restore
-# itself only cares about the secrets, never the domain fields.
+# APP_DOMAIN/API_DOMAIN/etc. lines in .env after this script finishes, then
+# re-run 'sudo ./scripts/caddy-site.sh --install' so Caddy answers for the new
+# names — the restore itself only cares about the secrets, never the domains.
 #
 # Safe to re-run: your pre-existing .env (if any) is saved as .env.bak-<ts>
 # rather than overwritten silently, and you're prompted before it's replaced.

@@ -71,7 +71,8 @@ with a single `docker compose up`, and a one-shot `./setup.sh` for a real VPS.
 ## Architecture overview
 
 Izy'Ah is a **monorepo** with two deployable apps (`frontend`, `backend`) and a set of
-backing services wired together with Docker Compose and fronted by Traefik.
+backing services wired together with Docker Compose, fronted by a Caddy that runs on
+the host rather than in the stack.
 
 Key decisions and the *why* behind them:
 
@@ -108,9 +109,9 @@ Key decisions and the *why* behind them:
                                  HTTP + WebSocket (Bearer token)
                                                   │
                                           ┌───────▼────────┐
-                                          │    Traefik     │  :80 / :443
-                                          │ reverse proxy  │  (routes by Host)
-                                          └───┬────────┬───┘
+                                          │  Caddy (host)  │  :80 / :443
+                                          │ reverse proxy  │  (routes by Host,
+                                          └───┬────────┬───┘   terminates TLS)
                         izyah.localhost       │        │   api.izyah.localhost
                      ┌────────────────────────▼┐     ┌─▼───────────────────────────┐
                      │  Frontend (nginx)        │     │  Backend (Express+Socket.IO)│
@@ -128,7 +129,8 @@ Key decisions and the *why* behind them:
                                                           │ media / notif.   │
                                                           └──────────────────┘
 
-   Admin: Adminer (db.izyah.localhost) · MinIO S3 (minio.izyah.localhost) · Traefik dash (traefik.izyah.localhost)
+   Admin: Adminer (db.izyah.localhost) · MinIO S3 (minio.izyah.localhost)
+   Caddy reaches each service on 127.0.0.1:4310-4316; nothing else is published.
 ```
 
 ## Project structure
@@ -139,7 +141,7 @@ izyah/
 ├── docker-compose.dev.yml        # infra only (Postgres/Redis/MinIO/Adminer) for native dev
 ├── .env.example                  # root env consumed by compose
 ├── infra/
-│   ├── traefik/                  # static + dynamic proxy config
+│   ├── caddy/                    # site blocks for the host Caddy (rendered by scripts/caddy-site.sh)
 │   ├── postgres/                 # init.sql (extensions)
 │   ├── redis/                    # redis.conf
 │   └── minio/                    # bucket bootstrap script
@@ -179,7 +181,7 @@ izyah/
 | Maps     | Leaflet + OpenStreetMap/Nominatim (keyless)                     |
 | Tickets  | `qrcode` (generate) + `qr-scanner` (camera-based scan)          |
 | Push     | Web Push API (VAPID)                                           |
-| Proxy    | Traefik v3                                                     |
+| Proxy    | Caddy 2, on the host (not in this stack)                       |
 | DB admin | Adminer                                                        |
 | Testing  | Jest + Supertest (backend); Vitest + Playwright (frontend)     |
 | Quality  | ESLint + Prettier                                              |
@@ -203,7 +205,6 @@ Then open:
 | http://api.izyah.localhost/docs   | Swagger UI (OpenAPI)    |
 | http://db.izyah.localhost         | Adminer (DB admin)      |
 | http://minio.izyah.localhost      | MinIO S3 endpoint       |
-| http://traefik.izyah.localhost    | Traefik dashboard       |
 
 > `*.localhost` hostnames resolve to `127.0.0.1` in modern browsers, so no `/etc/hosts`
 > edits are needed. On first boot the backend syncs the Prisma schema and seeds demo data
@@ -275,7 +276,7 @@ full list. Highlights:
 
 | Variable                                     | Purpose                                        |
 | -------------------------------------------- | ---------------------------------------------- |
-| `APP_DOMAIN` / `API_DOMAIN`              | Traefik host rules                             |
+| `APP_DOMAIN` / `API_DOMAIN`              | Caddy site addresses                           |
 | `POSTGRES_*`, `DATABASE_URL`             | Postgres credentials + Prisma connection       |
 | `REDIS_URL`                                | Redis connection                               |
 | `MINIO_*`                                  | Object storage creds, buckets, public base URL |
@@ -399,7 +400,8 @@ Icons: SVG icons ship in `public/icons`. To generate raster PWA assets, run
 ## Security
 
 - **Zod** validation on every request part (body/query/params) via the `validate` middleware.
-- **Helmet** security headers + Traefik security-headers middleware.
+- **Helmet** security headers, plus the same CSP/HSTS set at the edge by Caddy
+  ([`infra/caddy/izyah.caddyfile`](infra/caddy/izyah.caddyfile)).
 - **CORS** allow-list from `CORS_ORIGINS`.
 - **Rate limiting** backed by Redis (per identity/IP), stricter on write endpoints (chat/media).
 - **Secure uploads**: type + size limits (25 MB, images/videos), stored in MinIO; uploads go
@@ -454,7 +456,7 @@ with no flags. Picks up TLS automatically:
 recreate, health-gate, and **automatically roll back** on a failed health check.
 
 `deploy.sh` only ever recreates `backend` and `frontend`, so every *other* service keeps
-running whatever spec it was created with — a traefik or minio container can sit for months
+running whatever spec it was created with — a minio or adminer container can sit for months
 on an image tag the compose files no longer mention. Its preflight therefore compares each
 running container's `com.docker.compose.config-hash` against `docker compose config --hash`
 and prints any service that has drifted, with the command to recreate it. This is advisory,
@@ -463,7 +465,7 @@ not be able to block a deploy.
 
 For the same reason, **no third-party image floats on `:latest`.** `minio`, `minio-init`,
 `adminer`, and `logto` are pinned by digest (to the images production was verified to be
-running), and `traefik` by tag; `postgres`/`redis` stay on their major-version alpine tags,
+running); `postgres`/`redis` stay on their major-version alpine tags,
 where new patches are wanted and the data format is stable. Digest-pinning MinIO and Logto is
 deliberate — both own on-disk state, so an unplanned version jump on recreate would migrate a
 volume or a schema unasked. Each pin carries the re-pin command in a comment above it; bump
@@ -473,10 +475,9 @@ Doing it by hand instead:
 
 1. Point DNS for your app + API subdomains at the host.
 2. Set real secrets in `.env` and production `VITE_API_URL`/`VITE_SOCKET_URL`.
-3. Enable TLS: uncomment the `certificatesResolvers` block in
-   [`infra/traefik/traefik.yml`](infra/traefik/traefik.yml), set an ACME email, add
-   `tls.certresolver=letsencrypt` + the `websecure` entrypoint to the router labels, and the
-   HTTP→HTTPS redirect on the `web` entrypoint.
+3. Install the Caddy site blocks: `sudo ./scripts/caddy-site.sh --install`. TLS, ACME and
+   the HTTP→HTTPS redirect are Caddy's defaults, so there is nothing to enable — but nothing
+   answers for those hostnames until this is run.
 4. Use a managed Postgres/Redis and an S3 provider in production (swap the MinIO env for real
    S3 credentials) for durability and backups.
 5. Run the backend and a separate worker process (`npm run worker`) for horizontal scaling;

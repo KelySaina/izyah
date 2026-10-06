@@ -25,6 +25,6 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
 # Use 127.0.0.1 (not localhost): nginx listens on IPv4 only, and "localhost"
-# can resolve to ::1 first, making the check fail and Traefik drop the route.
+# can resolve to ::1 first, making the check fail and the container look unhealthy.
 HEALTHCHECK CMD wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1
 CMD ["nginx", "-g", "daemon off;"]

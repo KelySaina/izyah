@@ -3,7 +3,7 @@
 # the images CI pushed to GHCR, selected by ${IMAGE_TAG} (a git SHA).
 #
 #   IMAGE_TAG=<sha> docker compose \
-#     -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.deploy.yml \
+#     -f docker-compose.yml -f docker-compose.deploy.yml \
 #     pull backend frontend && ... up -d --no-build backend frontend
 #
 # Used by scripts/deploy.sh. Base files are untouched, so `make up` still builds

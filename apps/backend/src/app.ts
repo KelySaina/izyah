@@ -26,7 +26,12 @@ import { notificationsRouter } from './modules/notifications/notification.routes
 export function createApp(): Express {
   const app = express();
 
-  app.set('trust proxy', 1); // behind Traefik
+  // One hop: the Caddy on the host proxies straight to this container, with nothing
+  // in between. Caddy replaces X-Forwarded-For with the peer it actually accepted the
+  // connection from rather than appending to what the client sent, so req.ip — which
+  // the rate limiter keys on — is the real caller and cannot be spoofed. Put anything
+  // else in front of this and the number has to grow to match.
+  app.set('trust proxy', 1);
   app.use(helmet({ crossOriginResourcePolicy: false }));
   app.use(
     cors({

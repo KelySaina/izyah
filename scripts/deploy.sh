@@ -16,7 +16,9 @@ set -euo pipefail
 
 : "${IMAGE_TAG:?IMAGE_TAG is required}"
 
-COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.deploy.yml"
+# No prod overlay any more: it existed to flip Traefik's routers onto :443 with an
+# ACME resolver, and Traefik is gone. TLS and routing are a Caddy on the host.
+COMPOSE="docker compose -f docker-compose.yml -f docker-compose.deploy.yml"
 LAST_GOOD_FILE=".deployed_tag"
 HEALTH_RETRIES=30       # 30 * 4s = up to 2 min for migrations + boot
 HEALTH_DELAY=4
@@ -50,9 +52,9 @@ warn_new_env_keys() {
 # Informational only: flag services whose RUNNING container was created from
 # an older resolved spec than the compose files now describe. Those keep
 # serving the stale spec indefinitely, because this script only ever recreates
-# backend+frontend — nothing here touches traefik, adminer, minio...
+# backend+frontend — nothing here touches adminer, minio...
 #
-# That is not hypothetical: a traefik container created before the base compose
+# That is not hypothetical: a proxy container created before the base compose
 # pinned v3.6.1 kept running v3.1, whose Docker client speaks API 1.24 and is
 # refused by Engine 28+. Its provider dead-looped, zero routers were
 # registered, every URL 404'd — and both the deploy AND its automatic rollback
@@ -109,10 +111,12 @@ warn_stale_containers() {
 # replace-by-rename the host shows the new file while `docker exec cat` inside
 # the container still returns the old one.
 #
-# This matters most for infra/traefik/dynamic.yml: a CSP or middleware change
-# committed to the repo appears deployed, and simply isn't. It applies equally
-# to the other single-file mounts (.env into backup, create-buckets.sh into
-# minio-init).
+# It used to matter most for infra/traefik/dynamic.yml, where a CSP change
+# committed to the repo would appear deployed and simply not be. That file is gone
+# — the CSP now lives in infra/caddy/izyah.caddyfile, outside docker entirely, and
+# reaches Caddy only when scripts/caddy-site.sh re-renders it. The check still
+# earns its keep for the remaining single-file mounts (.env into backup,
+# create-buckets.sh into minio-init).
 #
 # `docker exec` is the only correct probe — `docker cp` resolves the host path
 # directly, bypassing the container's mount namespace, and reports in-sync when
@@ -179,6 +183,29 @@ preflight() {
 API_DOMAIN="$(grep -E '^API_DOMAIN=' .env | cut -d= -f2-)"
 HEALTH_URL="https://${API_DOMAIN}/health"
 
+# The reverse proxy lives outside this stack now, so a deploy can neither start it
+# nor fix it — but it can decline to spend two minutes polling an https:// URL that
+# nothing is listening for, and then roll back over it.
+check_proxy() {
+  command -v caddy >/dev/null 2>&1 ||
+    die "caddy is not installed on this host, so nothing serves ${API_DOMAIN}.
+       Install it, then: sudo ./scripts/caddy-site.sh --install"
+  systemctl is-active --quiet caddy ||
+    die "caddy is installed but not running — 'systemctl status caddy' says why."
+  grep -rqF "$API_DOMAIN" /etc/caddy 2>/dev/null ||
+    die "no Caddy site answers for ${API_DOMAIN}.
+       Run: sudo ./scripts/caddy-site.sh --install"
+  # The whole point of publishing on loopback: the stack must not be reachable
+  # around the proxy, in plain http, on the ports it exposes for Caddy.
+  local bind
+  bind="$(grep -E '^HOST_BIND=' .env | cut -d= -f2-)"
+  case "${bind:-127.0.0.1}" in
+    127.0.0.1|localhost) ;;
+    *) die "HOST_BIND is '$bind' — every service is published on all interfaces and
+       answers in plain http around Caddy. Set HOST_BIND=127.0.0.1 in .env." ;;
+  esac
+}
+
 # Authenticate to GHCR so private images can be pulled.
 if [ -n "${GHCR_TOKEN:-}" ]; then
   log "Logging in to GHCR as ${GHCR_USER:-?}"
@@ -186,7 +213,7 @@ if [ -n "${GHCR_TOKEN:-}" ]; then
 fi
 
 # Bring the working tree exactly to the deployed commit (compose files, scripts).
-# .env and the generated docker-compose.prod.yml are gitignored, so they persist.
+# .env is gitignored, so it persists.
 # The repo is private, so an anonymous fetch 401s — authenticate if a token was
 # handed to us (the CI caller passes its own run token; a manual run against a
 # public repo, or one where the box already has git credentials set up, works
@@ -222,6 +249,7 @@ health_ok() {
 }
 
 preflight
+check_proxy
 deploy_tag "$IMAGE_TAG"
 
 if health_ok; then

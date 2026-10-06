@@ -52,17 +52,24 @@ docker compose -f docker-compose.dev.yml --profile auth up -d logto
 - OIDC endpoint: http://localhost:3001
 - Admin console: http://localhost:3002
 
-**Prod (full stack):** `logto` is wired into `docker-compose.yml` behind Traefik
-at `AUTH_DOMAIN` / `AUTH_ADMIN_DOMAIN`. On a pre-existing Postgres volume, create
-the `logto` DB once (the `init.sql` only auto-creates it on a fresh volume), then
-start it with the profile:
+**Prod (full stack):** `logto` is in `docker-compose.yml` behind the `auth` profile,
+published on `127.0.0.1:${AUTH_HOST_PORT}` and `:${AUTH_ADMIN_HOST_PORT}`. On a
+pre-existing Postgres volume, create the `logto` DB once (the `init.sql` only
+auto-creates it on a fresh volume), then start it with the profile:
 ```bash
 docker compose exec postgres createdb -U "$POSTGRES_USER" logto
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile auth up -d logto
+docker compose --profile auth up -d logto
 ```
-> The logto routers carry `websecure` + Let's Encrypt TLS labels in
-> `docker-compose.yml`, so they get certs once started with `--profile auth`.
-> Keep `AUTH_ADMIN_DOMAIN` internal / IP-restricted in production.
+Routing is a second step, and deliberately so: the site blocks for
+`AUTH_DOMAIN` / `AUTH_ADMIN_DOMAIN` live in `infra/caddy/izyah-auth.caddyfile` and
+are installed only on request, because installing them while logto is down would
+have Caddy fetch certificates for both names and then answer 502 on every request:
+```bash
+sudo ./scripts/caddy-site.sh --install --with-auth
+```
+> Keep `AUTH_ADMIN_DOMAIN` internal / IP-restricted in production. Nothing in this
+> repo restricts it — the admin console is reachable by anyone who knows the name
+> once that site block is installed.
 
 ## 2. Register the apps in the Logto console
 

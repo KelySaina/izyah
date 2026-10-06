@@ -138,19 +138,16 @@ if [ "$MODE" = "nip" ] || [ "$MODE" = "http" ]; then
   BASE="${IP_IN}.nip.io"
 fi
 
-# Email is only needed when issuing certs.
-if [ "$TLS" = 1 ] && [ -z "$ACME_EMAIL" ]; then
-  [ -t 0 ] || die "HTTPS mode needs --email."
-  read -rp "Let's Encrypt email: " ACME_EMAIL
-  [ -n "$ACME_EMAIL" ] || die "Email is required for HTTPS."
-fi
+# Caddy issues certificates without an account email, unlike the Traefik ACME
+# resolver this replaced — so this is no longer prompted for or required. Set one
+# only if you want expiry warnings from Let's Encrypt, in Caddy's global options:
+#   { email you@example.com }   at the top of /etc/caddy/Caddyfile
 
 # Derived hostnames.
 APP_DOMAIN="$BASE"
 API_DOMAIN="api.$BASE"
 MEDIA_DOMAIN="media.$BASE"     # MinIO S3 endpoint (browser-facing object URLs)
 DB_DOMAIN="db.$BASE"           # Adminer
-TRAEFIK_DOMAIN="traefik.$BASE" # Traefik dashboard
 AUTH_DOMAIN="auth.$BASE"             # Logto OIDC endpoint (M2 account-linking)
 AUTH_ADMIN_DOMAIN="auth-admin.$BASE" # Logto admin console (M2)
 
@@ -201,18 +198,36 @@ POSTGRES_PASSWORD="$(read_env POSTGRES_PASSWORD)"; [ -n "$POSTGRES_PASSWORD" ] |
 MINIO_ROOT_PASSWORD="$(read_env MINIO_ROOT_PASSWORD)"; [ -n "$MINIO_ROOT_PASSWORD" ] || MINIO_ROOT_PASSWORD="$(gen)"
 SESSION_SECRET="$(read_env SESSION_SECRET)"; [ -n "$SESSION_SECRET" ] || SESSION_SECRET="$(openssl rand -hex 32)"
 
-# Adminer and the Traefik dashboard sit behind HTTP Basic Auth (Traefik
-# middleware, base docker-compose.yml) — ADMIN_AUTH_HTPASSWD is the derived
-# hash Traefik actually reads; ADMIN_AUTH_PASSWORD is kept alongside it only
-# so a re-run can reuse it instead of silently rotating your login.
+# Adminer sits behind HTTP Basic Auth, now applied by Caddy rather than a Traefik
+# middleware. ADMIN_AUTH_PASSWORD is kept alongside the hash only so a re-run can
+# reuse it instead of silently rotating your login.
+#
+# The hash must be BCRYPT: Caddy's basic_auth does not accept the apr1 hash that
+# `openssl passwd -apr1` produces, which is what this used to generate.
 ADMIN_AUTH_USER="$(read_env ADMIN_AUTH_USER)"; [ -n "$ADMIN_AUTH_USER" ] || ADMIN_AUTH_USER="admin"
 ADMIN_AUTH_PASSWORD="$(read_env ADMIN_AUTH_PASSWORD)"; [ -n "$ADMIN_AUTH_PASSWORD" ] || ADMIN_AUTH_PASSWORD="$(openssl rand -hex 16)"
-ADMIN_AUTH_HTPASSWD="${ADMIN_AUTH_USER}:$(openssl passwd -apr1 -salt "$(openssl rand -hex 4)" "$ADMIN_AUTH_PASSWORD")"
-# docker compose interpolates $VAR/${VAR} in .env files too (not just compose
-# YAML) — a bare apr1 hash's `$` segments get silently swallowed as
-# references to undefined vars otherwise. Escape before writing to .env; the
-# unescaped $ADMIN_AUTH_HTPASSWD is only for the printed summary below.
-ADMIN_AUTH_HTPASSWD_ESCAPED="${ADMIN_AUTH_HTPASSWD//\$/\$\$}"
+hash_password() {
+  if command -v caddy >/dev/null 2>&1; then
+    caddy hash-password --plaintext "$1"
+  elif command -v htpasswd >/dev/null 2>&1; then
+    # -B is bcrypt; -n prints instead of writing a file. Strip the "user:" prefix.
+    htpasswd -nbB x "$1" | cut -d: -f2-
+  else
+    return 1
+  fi
+}
+if ADMIN_AUTH_BCRYPT="$(hash_password "$ADMIN_AUTH_PASSWORD")"; then
+  :
+else
+  warn "Neither caddy nor htpasswd is available to hash the Adminer password."
+  warn "  Set ADMIN_AUTH_BCRYPT in .env before running scripts/caddy-site.sh --install:"
+  warn "    caddy hash-password --plaintext '<password>'"
+  ADMIN_AUTH_BCRYPT=""
+fi
+# docker compose interpolates $VAR/${VAR} in .env files too (not just compose YAML),
+# so a bare bcrypt hash's `$` segments get silently swallowed as references to
+# undefined vars. Escape before writing to .env; scripts/caddy-site.sh undoubles it.
+ADMIN_AUTH_BCRYPT_ESCAPED="${ADMIN_AUTH_BCRYPT//\$/\$\$}"
 
 # Preserve any Logto/OIDC config already wired in (so a re-run doesn't blank it).
 OIDC_ISSUER="$(read_env OIDC_ISSUER)"
@@ -226,10 +241,9 @@ cat > .env <<EOF
 # Mode: $MODE  ·  scheme: $SCHEME
 # ============================================================================
 
-# --- Domains (Traefik host rules) ------------------------------------------
+# --- Domains (Caddy site addresses) ----------------------------------------
 APP_DOMAIN=$APP_DOMAIN
 API_DOMAIN=$API_DOMAIN
-TRAEFIK_DOMAIN=$TRAEFIK_DOMAIN
 MINIO_CONSOLE_DOMAIN=$MEDIA_DOMAIN
 ADMINER_DOMAIN=$DB_DOMAIN
 AUTH_DOMAIN=$AUTH_DOMAIN
@@ -250,7 +264,7 @@ REDIS_URL=redis://redis:6379
 
 # --- MinIO / S3 -------------------------------------------------------------
 # Backend reaches MinIO in-cluster over plain http (minio:9000); TLS (when on)
-# is terminated by Traefik in front, so MINIO_USE_SSL stays false here.
+# is terminated by the Caddy on the host, so MINIO_USE_SSL stays false here.
 MINIO_ROOT_USER=$MINIO_ROOT_USER_IN
 MINIO_ROOT_PASSWORD=$MINIO_ROOT_PASSWORD
 MINIO_ENDPOINT=minio
@@ -278,12 +292,25 @@ SESSION_SECRET=$SESSION_SECRET
 # Public URL of the app (used to build OIDC redirect/callback links in M2).
 APP_URL=$SCHEME://$APP_DOMAIN
 
-# --- Admin surfaces (Adminer, Traefik dashboard) ----------------------------
-# HTTP Basic Auth in front of both — see the summary this script prints for
-# the plaintext password (it's only ever shown once per rotation).
+# --- Admin surfaces (Adminer) -----------------------------------------------
+# HTTP Basic Auth in front of Adminer, applied by Caddy — see the summary this
+# script prints for the plaintext password (only ever shown once per rotation).
 ADMIN_AUTH_USER=$ADMIN_AUTH_USER
 ADMIN_AUTH_PASSWORD=$ADMIN_AUTH_PASSWORD
-ADMIN_AUTH_HTPASSWD=$ADMIN_AUTH_HTPASSWD_ESCAPED
+ADMIN_AUTH_BCRYPT=$ADMIN_AUTH_BCRYPT_ESCAPED
+
+# --- Host ports for the reverse proxy ---------------------------------------
+# Caddy runs on the host, outside docker, so it reaches each service through a
+# published port rather than the compose network. 127.0.0.1 is what makes the
+# proxy the only way in.
+HOST_BIND=127.0.0.1
+FRONTEND_HOST_PORT=4310
+BACKEND_HOST_PORT=4311
+ADMINER_HOST_PORT=4312
+MINIO_HOST_PORT=4313
+MINIO_CONSOLE_HOST_PORT=4314
+AUTH_HOST_PORT=4315
+AUTH_ADMIN_HOST_PORT=4316
 
 # --- OIDC (Logto) — empty = anonymous-only. Fill after provisioning ---------
 # See SETUP-AUTH.md. OIDC_ISSUER e.g. $SCHEME://$AUTH_DOMAIN/oidc
@@ -297,101 +324,27 @@ EOF
 chmod 600 .env
 ok "Wrote .env (chmod 600). Postgres + MinIO passwords generated."
 
-# --- 3. Overlay (only for HTTPS modes) --------------------------------------
+# --- 3. Reverse proxy -------------------------------------------------------
+# Nothing to generate here any more. Traefik used to be written out as an
+# overlay plus a generated static config, and it bound 80/443 itself — which is
+# precisely why it had to go: nothing else on the box could have those ports.
+# TLS, ACME and routing now belong to the Caddy running on the host, shared with
+# every other app there. This stack only publishes each service on ${HOST_BIND},
+# and scripts/caddy-site.sh renders the site blocks from the .env written above.
 COMPOSE_ARGS=(-f docker-compose.yml)
 if [ "$TLS" = 1 ]; then
-  COMPOSE_ARGS+=(-f docker-compose.prod.yml)
-  info "Writing infra/traefik/traefik.prod.yml (Let's Encrypt) ..."
-  mkdir -p infra/traefik letsencrypt
-  cat > infra/traefik/traefik.prod.yml <<EOF
-# Traefik v3 static config — PRODUCTION HTTPS (generated by setup.sh).
-global:
-  checkNewVersion: false
-  sendAnonymousUsage: false
-api:
-  dashboard: true
-  insecure: false
-log:
-  level: INFO
-accessLog: {}
-entryPoints:
-  web:
-    address: ":80"
-    http:
-      redirections:
-        entryPoint:
-          to: websecure
-          scheme: https
-  websecure:
-    address: ":443"
-providers:
-  docker:
-    exposedByDefault: false
-    network: izyah
-    watch: true
-  file:
-    filename: /etc/traefik/dynamic.yml
-    watch: true
-certificatesResolvers:
-  letsencrypt:
-    acme:
-      email: $ACME_EMAIL
-      storage: /letsencrypt/acme.json
-      httpChallenge:
-        entryPoint: web
-EOF
-  ok "Wrote traefik.prod.yml (ACME email: $ACME_EMAIL)."
-
-  info "Writing docker-compose.prod.yml overlay ..."
-  # Quoted heredoc — ${VAR} stay literal so compose expands them from .env.
-  cat > docker-compose.prod.yml <<'EOF'
-# ============================================================================
-# Izy'Ah — HTTPS production overlay. Layer on top of the base compose:
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-# Flips each router to websecure (443) with a Let's Encrypt cert; base files
-# are left untouched.
-# ============================================================================
-services:
-  traefik:
-    # v3.6.1+ negotiates the Docker API version; earlier tags pin 1.24 and
-    # break against Docker Engine 28+ ("client version 1.24 is too old").
-    image: traefik:v3.6.1
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./infra/traefik/traefik.prod.yml:/etc/traefik/traefik.yml:ro
-      - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
-      - ./letsencrypt:/letsencrypt
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.dashboard.entrypoints=websecure
-      - traefik.http.routers.dashboard.tls.certresolver=letsencrypt
-
-  backend:
-    labels:
-      - traefik.http.routers.backend.entrypoints=websecure
-      - traefik.http.routers.backend.tls.certresolver=letsencrypt
-      - traefik.http.routers.backend.middlewares=security-headers@file,compress@file
-
-  frontend:
-    labels:
-      - traefik.http.routers.frontend.entrypoints=websecure
-      - traefik.http.routers.frontend.tls.certresolver=letsencrypt
-      - traefik.http.routers.frontend.middlewares=security-headers@file,compress@file
-
-  minio:
-    labels:
-      - traefik.http.routers.minio.entrypoints=websecure
-      - traefik.http.routers.minio.tls.certresolver=letsencrypt
-
-  adminer:
-    labels:
-      - traefik.http.routers.adminer.entrypoints=websecure
-      - traefik.http.routers.adminer.tls.certresolver=letsencrypt
-EOF
-  ok "Wrote docker-compose.prod.yml."
+  if command -v caddy >/dev/null 2>&1; then
+    ok "caddy found on this host."
+  else
+    warn "caddy is NOT installed on this host, so nothing will answer for $APP_DOMAIN."
+    warn "  Install it: https://caddyserver.com/docs/install#debian-ubuntu-raspbian"
+  fi
+  info "Routing is a separate step, once the stack is up:"
+  info "  sudo ./scripts/caddy-site.sh --install"
 else
-  warn "HTTP mode: no TLS overlay written. Traffic is UNENCRYPTED — testing only."
+  warn "HTTP mode: no TLS. Traffic is UNENCRYPTED — testing only."
 fi
+
 
 # --- Firewall (best effort) -------------------------------------------------
 if command -v ufw >/dev/null 2>&1; then
@@ -440,21 +393,27 @@ ${c_grn}Done.${c_0}
   API        $SCHEME://$API_DOMAIN
   MinIO (S3) $SCHEME://$MEDIA_DOMAIN
   Adminer    $SCHEME://$DB_DOMAIN
-  Traefik    $SCHEME://$TRAEFIK_DOMAIN
+
+  None of those answer until the Caddy on this host has the site blocks:
+  ${c_cyn}sudo ./scripts/caddy-site.sh --install${c_0}
 
   Secrets live in ./.env (chmod 600), already gitignored.
 
 Manage the stack:
   ${c_cyn}$run_cmd up -d --build${c_0}
-  $run_cmd logs -f traefik
+  $run_cmd logs -f backend
   $run_cmd down
+  journalctl -u caddy -f        # routing and certificates (the proxy is not in this stack)
 
 Notes:
 EOF
 if [ "$TLS" = 1 ]; then
   cat <<EOF
   - First cert needs ports 80/443 reachable and the hosts above resolving to
-    this VPS. Watch '$run_cmd logs -f traefik' for ACME activity.
+    this VPS. Caddy issues them; watch 'journalctl -u caddy -f' for ACME activity.
+  - Only 80/443 should be open. The 4310-4316 range is bound to 127.0.0.1 for
+    Caddy to reach, and opening it would serve the app in plain http alongside
+    the TLS you just set up.
   - nip.io is a shared domain; if Let's Encrypt rate-limits it, retry later
     or switch to a real domain (--domain).
 EOF
@@ -466,7 +425,7 @@ else
 EOF
 fi
 cat <<EOF
-  - Adminer and the Traefik dashboard require HTTP Basic Auth:
+  - Adminer requires HTTP Basic Auth (enforced by Caddy):
       user:     $ADMIN_AUTH_USER
       password: $ADMIN_AUTH_PASSWORD
     (also saved in .env as ADMIN_AUTH_USER/ADMIN_AUTH_PASSWORD — a re-run
