@@ -48,6 +48,8 @@ USE_NIP=0                     # --nip : <ip>.nip.io + HTTPS
 USE_HTTP=0                    # --http: <ip>.nip.io + plain HTTP, no cert
 IP_IN="${IP:-}"              # override auto-detected public IP
 ACME_EMAIL="${ACME_EMAIL:-}"
+# Label the nip.io hostnames sit under: <label>.<dashed-ip>.nip.io.
+NIP_LABEL="${NIP_LABEL:-izyah}"
 MINIO_ROOT_USER_IN="${MINIO_ROOT_USER:-izyah-minio}"
 POSTGRES_USER_IN="${POSTGRES_USER:-izyah}"
 POSTGRES_DB_IN="${POSTGRES_DB:-izyah}"
@@ -64,6 +66,8 @@ Modes (choose one; you'll be prompted if none is given):
 
 Options:
   --ip <addr>    Public IP to use with --nip/--http (default: auto-detect)
+  --label <l>    Label the nip.io names sit under (default: izyah), giving
+                 <label>.<dashed-ip>.nip.io and api./db./media. beneath it
   --email <e>    Optional. Caddy issues certs without an account email; this is
                  only kept for expiry warnings. Put it in Caddy's global options.
   --start        Build and start without asking
@@ -78,6 +82,7 @@ while [ $# -gt 0 ]; do
     --nip)    USE_NIP=1; shift ;;
     --http)   USE_HTTP=1; shift ;;
     --ip)     IP_IN="${2:?}"; shift 2 ;;
+    --label)  NIP_LABEL="${2:?}"; shift 2 ;;
     --email)  ACME_EMAIL="${2:?}"; shift 2 ;;
     --start)    START="yes"; shift ;;
     --no-start) START="no";  shift ;;
@@ -136,7 +141,18 @@ if [ "$MODE" = "nip" ] || [ "$MODE" = "http" ]; then
     ok "Public IP: $IP_IN"
   fi
   printf '%s' "$IP_IN" | grep -Eq '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' || die "Invalid IP: $IP_IN"
-  BASE="${IP_IN}.nip.io"
+  # nip.io resolves <anything>.<ip>.nip.io to <ip>, with the IP written either
+  # dotted or dashed. Dashed, and behind a label, for two reasons:
+  #
+  #   izyah.75-119-136-160.nip.io      <- this
+  #   75.119.136.160.nip.io            <- what this used to produce
+  #
+  # The bare form takes the whole IP's nip.io namespace for one app, so a second
+  # app on the same box has nowhere to go. The box already runs others under
+  # ollama./n8n./timeline.<dashed-ip>.nip.io, so this matches them, and every
+  # izyah hostname ends up under one label: api.izyah..., db.izyah..., media.izyah...
+  IP_DASHED="$(printf '%s' "$IP_IN" | tr '.' '-')"
+  BASE="${NIP_LABEL}.${IP_DASHED}.nip.io"
 fi
 
 # Caddy issues certificates without an account email, unlike the Traefik ACME
