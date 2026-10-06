@@ -58,13 +58,14 @@ usage() {
 Usage: ./setup.sh [mode] [options]
 
 Modes (choose one; you'll be prompted if none is given):
-  --domain <d>   Real domain, HTTPS via Let's Encrypt (needs --email)
-  --nip          No domain: use <public-ip>.nip.io with HTTPS (needs --email)
+  --domain <d>   Real domain, HTTPS via Let's Encrypt
+  --nip          No domain: use <public-ip>.nip.io with HTTPS
   --http         No domain: use <public-ip>.nip.io over plain HTTP (no cert)
 
 Options:
   --ip <addr>    Public IP to use with --nip/--http (default: auto-detect)
-  --email <e>    Let's Encrypt email (required for HTTPS modes)
+  --email <e>    Optional. Caddy issues certs without an account email; this is
+                 only kept for expiry warnings. Put it in Caddy's global options.
   --start        Build and start without asking
   --no-start     Configure only
   -h, --help     This help
